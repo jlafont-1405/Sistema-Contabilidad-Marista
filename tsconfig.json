@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    /* Configuración Base */
+    "target": "ES2020",
+    "module": "commonjs",
+    "rootDir": "./src",
+    "outDir": "./dist",
+    
+    /* Interoperabilidad (Vital para usar imports modernos con Express) */
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+
+    /* Reglas de Calidad (Strict Mode) */
+    "strict": true,
+    "noImplicitAny": true,           // Prohibido el tipo 'any' implícito
+    "strictNullChecks": true,        // Nos obliga a verificar si algo es null
+    "noUncheckedIndexedAccess": true, // Seguridad extra con Arrays
+
+    /* Otros */
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "uploads"] 
+}
