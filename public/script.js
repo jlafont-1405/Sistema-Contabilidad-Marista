@@ -3,6 +3,7 @@ const monthSelector = document.getElementById('monthSelector');
 
 // --- AL INICIO DEL ARCHIVO (Variables globales) ---
 let myChart = null; // Variable para guardar la instancia del gráfico
+let editingId = null;
 
 // 1. Inicialización
 document.addEventListener('DOMContentLoaded', () => {
