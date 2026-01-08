@@ -376,3 +376,12 @@ function renderChart(transactions) {
         }
     });
 }
+
+// Al final de script.js
+function toggleForm() {
+    console.log("🔄 Alternando formulario...");
+    const container = document.getElementById('formContainer');
+    if (window.innerWidth < 1024) {
+        container.classList.toggle('form-open');
+    }
+}

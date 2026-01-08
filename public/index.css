@@ -1,0 +1,79 @@
+/* index.css */
+
+/* Animación del cargador */
+.loader { 
+    width: 16px; 
+    height: 16px; 
+    border: 2px solid #ffffff; 
+    border-bottom-color: transparent; 
+    border-radius: 50%; 
+    display: inline-block; 
+    animation: rotation 1s linear infinite; 
+}
+
+@keyframes rotation { 
+    0% { transform: rotate(0deg); } 
+    100% { transform: rotate(360deg); } 
+}
+
+/* Mejoras de usabilidad */
+input[type="month"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    filter: invert(0.5);
+}
+
+/* index.css */
+
+/* Contenedor de tabla con scroll suave */
+.table-container {
+    overflow-x: auto;
+    display: block;
+    width: 100%;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Estilo para que las celdas de acciones y soporte no se aplasten */
+th, td {
+    white-space: nowrap;
+    min-width: 120px;
+}
+
+/* Efecto de colapso para el formulario en móviles */
+/* index.css */
+@media (max-width: 1024px) {
+    .collapsible-content {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Clase que activamos con JS */
+    .form-open .collapsible-content {
+        max-height: 800px; /* Ajusta según el alto de tu form */
+    }
+
+    .toggle-icon {
+        transition: transform 0.3s ease;
+    }
+
+    .form-open .toggle-icon {
+        transform: rotate(180deg);
+    }
+}
+/* Transición suave para los botones */
+button {
+    transition: all 0.2s ease-in-out;
+}
+    /* Estilo para PC (Lado a lado) */
+.contenedor-totales {
+  display: flex;
+  flex-direction: row;
+}
+
+/* Estilo para Celular (Uno debajo del otro) */
+@media (max-width: 600px) {
+  .contenedor-totales {
+    flex-direction: column;
+  }
+}
+
