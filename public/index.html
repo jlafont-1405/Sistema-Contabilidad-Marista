@@ -8,64 +8,8 @@
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        .loader {
-            width: 16px;
-            height: 16px;
-            border: 2px solid #ffffff;
-            border-bottom-color: transparent;
-            border-radius: 50%;
-            display: inline-block;
-            box-sizing: border-box;
-            animation: rotation 1s linear infinite;
-        }
-        @keyframes rotation {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        /* Estilo base del botón (puedes adaptarlo a tu diseño actual) */
-.btn-primary {
-  padding: 10px 20px;
-  background-color: #007bff; /* Azul estándar */
-  color: white;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px; /* Espacio entre spinner y texto si decidieras dejar ambos */
-  transition: background 0.3s;
-}
-
-.btn-primary:hover {
-  background-color: #0056b3;
-}
-
-/* ESTADO: DESHABILITADO / CARGANDO */
-.btn-primary:disabled {
-  background-color: #95c5ff; /* Un azul más claro */
-  cursor: not-allowed;
-  opacity: 0.8;
-}
-
-/* EL SPINNER (Círculo de carga) */
-.loader {
-  width: 16px;
-  height: 16px;
-  border: 3px solid #ffffff;
-  border-bottom-color: transparent; /* Esto crea el efecto de "círculo abierto" */
-  border-radius: 50%;
-  display: inline-block;
-  box-sizing: border-box;
-  animation: rotation 1s linear infinite;
-}
-
-/* Animación de rotación */
-@keyframes rotation {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
+        .loader { width: 16px; height: 16px; border: 2px solid #ffffff; border-bottom-color: transparent; border-radius: 50%; display: inline-block; animation: rotation 1s linear infinite; }
+        @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body class="bg-gray-100 font-sans pb-10">
@@ -78,34 +22,38 @@
             
             <div class="flex items-center gap-2 bg-blue-800 p-1 rounded-lg">
                 <input type="month" id="monthSelector" class="text-black rounded px-2 py-1 outline-none text-sm font-bold">
-                <button onclick="updateBaseIncome()" class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-sm transition">
+                <button id="btnFijarBase" class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-sm transition font-bold flex items-center gap-1">
                     <i class="ph ph-coins"></i> Fijar Base
                 </button>
+                <a href="/api/reports/excel" target="_blank" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm transition font-bold flex items-center gap-1 shadow-sm">
+                    <i class="ph ph-microsoft-excel-logo text-lg"></i> Excel
+                </a>
             </div>
+            
+            <button id="btnLogout" class="ml-2 text-red-300 hover:text-white" title="Cerrar Sesión">
+                <i class="ph ph-sign-out text-xl"></i>
+            </button>
         </div>
     </nav>
 
     <div class="container mx-auto mt-8 p-4 grid grid-cols-1 md:grid-cols-3 gap-6">
-        
         <div class="md:col-span-1 h-fit sticky top-24">
             <div class="bg-white p-6 rounded-xl shadow-md border-t-4 border-blue-900">
                 <h2 class="text-lg font-semibold text-gray-700 mb-4">Registrar Movimiento</h2>
                 
                 <form id="transactionForm" class="space-y-4">
-                    
                     <div class="flex gap-2 p-1 bg-gray-100 rounded-lg">
                         <label class="flex-1 text-center cursor-pointer">
-                            <input type="radio" name="type" value="egreso" checked class="peer hidden" onchange="toggleCategoryColor()">
+                            <input type="radio" name="type" value="egreso" checked class="peer hidden">
                             <span class="block py-2 rounded-md text-gray-500 peer-checked:bg-red-500 peer-checked:text-white transition font-bold">Egreso 💸</span>
                         </label>
                         <label class="flex-1 text-center cursor-pointer">
-                            <input type="radio" name="type" value="ingreso" class="peer hidden" onchange="toggleCategoryColor()">
+                            <input type="radio" name="type" value="ingreso" class="peer hidden">
                             <span class="block py-2 rounded-md text-gray-500 peer-checked:bg-green-600 peer-checked:text-white transition font-bold">Ingreso 💰</span>
                         </label>
                     </div>
 
                     <input type="date" name="date" required class="w-full p-2 border rounded-lg bg-gray-50 outline-none focus:ring-2 focus:ring-blue-500">
-
                     <input type="text" name="description" placeholder="Descripción" required class="w-full p-2 border rounded-lg bg-gray-50 outline-none focus:ring-2 focus:ring-blue-500">
 
                     <div class="grid grid-cols-2 gap-2">
@@ -124,63 +72,64 @@
 
                     <input type="file" name="invoice" accept="image/*" class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
 
-                    <button id="saveBtn" type="submit" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-lg transition shadow-md flex justify-center items-center gap-2">
-                        Guardar Egreso 💸
-                    </button>
-                    <button id="cancelEditBtn" type="button" onclick="cancelEdit()" class="hidden w-full mb-2 bg-gray-400 hover:bg-gray-500 text-white font-bold py-2 rounded-lg transition">
+                    <button id="cancelEditBtn" type="button" class="hidden w-full bg-gray-400 hover:bg-gray-500 text-white font-bold py-2 rounded-lg transition mb-2">
                         Cancelar Edición ❌
                     </button>
 
-<button id="saveBtn" type="submit" ... >
+                    <button id="saveBtn" type="submit" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-lg transition shadow-md flex justify-center items-center gap-2">
+                        Guardar Egreso 💸
+                    </button>
                 </form>
             </div>
         </div>
 
-        <div class="md:col-span-2 space-y-6">
+<div class="md:col-span-2 space-y-6">
             
-            <div class="grid grid-cols-3 gap-4">
-                <div class="bg-white p-4 rounded-xl shadow border-l-4 border-blue-500">
-                    <p class="text-xs text-gray-500 font-bold uppercase">Asignación Base</p>
-                    <p id="baseIncomeDisplay" class="text-2xl font-bold text-blue-700">$0.00</p>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                
+                <div class="bg-white p-4 rounded-xl shadow border-l-4 border-blue-500 h-full">
+                    <p class="text-sm text-gray-500 font-bold uppercase">Total Base</p>
+                    <h3 id="totalBase" class="text-2xl font-bold text-blue-600">$0.00</h3>
                 </div>
-                <div class="bg-white p-4 rounded-xl shadow border-l-4 border-green-500">
-                    <p class="text-xs text-gray-500 font-bold uppercase">Total Ingresos</p>
-                    <p id="totalIncomeDisplay" class="text-2xl font-bold text-green-700">$0.00</p>
+
+                <div class="bg-white p-4 rounded-xl shadow border-l-4 border-green-500 h-full">
+                    <p class="text-sm text-gray-500 font-bold uppercase">Total Ingresos</p>
+                    <h3 id="totalIngresos" class="text-2xl font-bold text-green-600">$0.00</h3>
                 </div>
-                <div class="bg-white p-4 rounded-xl shadow border-l-4 border-red-500">
-                    <p class="text-xs text-gray-500 font-bold uppercase">Total Egresos</p>
-                    <p id="totalExpenseDisplay" class="text-2xl font-bold text-red-600">$0.00</p>
+
+                <div class="bg-white p-4 rounded-xl shadow border-l-4 border-red-500 h-full">
+                    <p class="text-sm text-gray-500 font-bold uppercase">Total Egresos</p>
+                    <h3 id="totalEgresos" class="text-2xl font-bold text-red-600">$0.00</h3>
                 </div>
+
             </div>
 
-            <div class="bg-gray-800 text-white p-4 rounded-xl shadow flex justify-between items-center">
-                <span class="font-bold text-lg">⚖️ Balance del Mes (Caja Final):</span>
-                <span id="finalBalanceDisplay" class="text-3xl font-bold text-white">$0.00</span>
+            <div class="bg-slate-800 text-white p-4 rounded-xl shadow-lg flex justify-between items-center">
+                <span class="text-lg font-medium">⚖️ Balance del Mes (Caja Final):</span>
+                <h2 id="totalBalance" class="text-3xl font-bold">$0.00</h2>
             </div>
 
-            <div class="bg-white p-6 rounded-xl shadow-md mt-6">
-                <h3 class="text-lg font-bold text-gray-700 mb-4 border-b pb-2">📊 Distribución de Gastos</h3>
-                <div class="h-64 w-full flex justify-center"> <canvas id="expenseChart"></canvas>
-                </div>
+            <div class="bg-white p-6 rounded-xl shadow-md">
+                <canvas id="myChart" style="max-height: 300px;"></canvas>
             </div>
 
             <div class="bg-white rounded-xl shadow-md overflow-hidden">
-                <table class="w-full text-left">
-                    <thead class="bg-gray-100 text-gray-600 text-xs uppercase">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-gray-100 text-gray-600 text-sm uppercase">
                         <tr>
-                            <th class="p-3">Día</th>
-                            <th class="p-3">Descripción</th>
-                            <th class="p-3">Tipo</th>
-                            <th class="p-3 text-right">Monto</th>
-                            <th class="p-3 text-center">Foto</th>
-                            <th class="p-3"></th>
+                            <th class="p-4">Fecha</th>
+                            <th class="p-4">Descripción</th>
+                            <th class="p-4 text-center">Tipo</th>
+                            <th class="p-4 text-right">Monto</th>
+                            <th class="p-4 text-center">Soporte</th>
+                            <th class="p-4 text-center">Acciones</th>
                         </tr>
                     </thead>
-                    <tbody id="tableBody" class="text-sm"></tbody>
+                    <tbody id="transactionTableBody" class="divide-y divide-gray-100 text-sm">
+                        </tbody>
                 </table>
             </div>
         </div>
-
     </div>
     <script src="script.js"></script>
 </body>

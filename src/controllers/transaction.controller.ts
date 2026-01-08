@@ -1,97 +1,120 @@
 import { Request, Response } from 'express';
 import Transaction from '../models/transaction.model';
-import Budget from '../models/budget.model';
+import Budget from '../models/budget.model'; // Asegúrate de que este modelo exista
 import fs from 'fs';
 import path from 'path';
 
 export class TransactionController {
 
-// Crear Movimiento (Ingreso o Egreso)
+    // 1. Crear Movimiento
     public create = async (req: Request, res: Response) => {
         try {
             console.log("📥 Recibido en Backend:", req.body);
-            console.log("📸 Archivo recibido:", req.file); // Ver si llega archivo
-
+            
             const { date, type, amount, description, category } = req.body;
 
-            // 1. Preparar el objeto básico (Convertimos monto a Número)
             const transactionData: any = {
                 date,
                 type,
-                amount: Number(amount), // <--- FORZAMOS A NÚMERO
+                amount: Number(amount),
                 description,
                 category
             };
 
-            // 2. Solo agregamos la imagen si realmente existe (evita errores de undefined)
             if (req.file && req.file.path) {
                 transactionData.imageUrl = req.file.path;
             }
 
-            // 3. Crear y Guardar
             const newTransaction = new Transaction(transactionData);
             await newTransaction.save();
             
-            console.log("✅ Guardado en BD con éxito");
-            res.status(201).json({ message: '✅ Movimiento guardado' });
+            // 👇 Agregué esto: Devolver el objeto creado ayuda a confirmar
+            res.status(201).json(newTransaction); 
 
         } catch (error: any) {
-            console.error("🔴 ERROR CRÍTICO AL GUARDAR:", error); // Mírame si falla
+            console.error("🔴 ERROR CRÍTICO AL GUARDAR:", error);
             res.status(500).json({ message: 'Error al guardar', error: error.message });
         }
     };
 
-    // Obtener Movimientos FILTRADOS por MES
-    public getByMonth = async (req: Request, res: Response) => {
-        try {
-            const { year, month } = req.query; // Recibimos ?year=2024&month=2
+    /// 2. OBTENER POR MES (Versión Blindada UTC)
+public getByMonth = async (req: Request, res: Response) => {
+    try {
+        const { month } = req.query; // "2026-01"
 
-            if (!year || !month) {
-                return res.status(400).json({ message: 'Falta año o mes' });
-            }
-
-            // Crear rango de fechas: Desde el día 1 hasta el último del mes
-            const startDate = new Date(Number(year), Number(month) - 1, 1);
-            const endDate = new Date(Number(year), Number(month), 0, 23, 59, 59);
-
-            // Buscar transacciones en ese rango
-            const transactions = await Transaction.find({
-                date: { $gte: startDate, $lte: endDate }
-            }).sort({ date: -1 });
-
-            // Buscar el Presupuesto Base de ese mes (formato YYYY-MM)
-            // Agregamos '0' al mes si es menor a 10 (ej: 2024-02)
-            const monthStr = `${year}-${String(month).padStart(2, '0')}`;
-            const budget = await Budget.findOne({ month: monthStr });
-
-            res.json({
-                transactions,
-                baseIncome: budget ? budget.baseIncome : 0 // Si no existe, es 0
-            });
-
-        } catch (error: any) {
-            res.status(500).json({ message: 'Error obteniendo datos' });
+        if (!month || typeof month !== 'string') {
+            return res.status(400).json({ message: 'Falta mes (?month=YYYY-MM)' });
         }
-    };
 
-    // Establecer Presupuesto Mensual
+        // --- CÁLCULO DE FECHAS UTC EXACTAS ---
+        // Separamos el string "2026-01" manualmente
+        const [yearStr, monthStr] = month.split('-');
+        const year = Number(yearStr);
+        const monthIndex = Number(monthStr) - 1; // Enero es 0 en JS
+
+        // Creamos fecha inicio: Día 1 a las 00:00:00.000 UTC exacto
+        const startDate = new Date(Date.UTC(year, monthIndex, 1, 0, 0, 0));
+        
+        // Creamos fecha fin: Día 0 del siguiente mes (último día del actual) a las 23:59:59.999 UTC
+        const endDate = new Date(Date.UTC(year, monthIndex + 1, 0, 23, 59, 59, 999));
+
+        console.log(`🔎 Buscando entre: ${startDate.toISOString()} y ${endDate.toISOString()}`);
+
+        // -------------------------------------
+
+        // B. Buscar Transacciones
+        const transactions = await Transaction.find({
+            date: {
+                $gte: startDate,
+                $lte: endDate
+            }
+        }).sort({ date: -1 }); // Ordenar: más recientes primero
+
+        // C. Buscar Presupuesto
+        const budgetDoc = await Budget.findOne({ month: month });
+        const baseIncome = budgetDoc ? budgetDoc.baseIncome : 0;
+
+        // D. Responder
+        res.json({
+            transactions: transactions,
+            budget: baseIncome
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error al obtener datos' });
+    }
+}
+
+    // 3. Establecer Presupuesto (Aquí estaba el error de nombre)
     public setBudget = async (req: Request, res: Response) => {
         try {
-            const { monthStr, amount } = req.body; // { monthStr: "2024-02", amount: 500 }
+            // ❌ ANTES: const { monthStr, amount } = req.body;
+            // ✅ AHORA: Usamos 'month' porque así lo manda el JS del frontend
+            const { month, amount } = req.body; 
             
-            // upsert: true -> Si existe actualiza, si no existe lo crea
+            console.log(`💰 Fijando base para ${month}: $${amount}`);
+
+            if (!month || amount === undefined) {
+                 return res.status(400).json({ message: 'Faltan datos (month, amount)' });
+            }
+
+            // Guardar o Actualizar
             const budget = await Budget.findOneAndUpdate(
-                { month: monthStr },
-                { baseIncome: amount },
-                { new: true, upsert: true }
+                { month: month },          // Busca por "2026-01"
+                { baseIncome: amount },    // Actualiza el monto
+                { new: true, upsert: true } // Crea si no existe
             );
+
             res.json(budget);
+
         } catch (error) {
+            console.error("Error setting budget:", error);
             res.status(500).json({ message: 'Error guardando presupuesto' });
         }
     };
 
-    // Eliminar (Igual que antes)
+    // 4. Eliminar
     public delete = async (req: Request, res: Response) => {
         try {
             const { id } = req.params;
@@ -100,7 +123,9 @@ export class TransactionController {
 
             if (tx.imageUrl) {
                 const absolutePath = path.resolve(tx.imageUrl);
-                if (fs.existsSync(absolutePath)) fs.unlinkSync(absolutePath);
+                if (fs.existsSync(absolutePath)) {
+                    try { fs.unlinkSync(absolutePath); } catch(e) { console.error("Error borrando img", e); }
+                }
             }
             await Transaction.findByIdAndDelete(id);
             res.json({ message: '✅ Eliminado' });
@@ -108,22 +133,25 @@ export class TransactionController {
             res.status(500).json({ message: 'Error eliminando' });
         }
     };
-    public update = async (req: any, res: any) => {
+
+    // 5. Actualizar
+    public update = async (req: Request, res: Response) => {
         try {
             const { id } = req.params;
             const updateData = req.body;
 
-            // { new: true } devuelve el objeto actualizado
-            const updatedTx = await Transaction.findByIdAndUpdate(id, updateData, { new: true });
-
-            if (!updatedTx) {
-                return res.status(404).json({ message: 'Transacción no encontrada' });
+            // Si subieron imagen nueva en el update
+            if (req.file && req.file.path) {
+                updateData.imageUrl = req.file.path;
             }
+
+            const updatedTx = await Transaction.findByIdAndUpdate(id, updateData, { new: true });
+            if (!updatedTx) return res.status(404).json({ message: 'Transacción no encontrada' });
 
             res.json(updatedTx);
         } catch (error) {
             console.error(error);
-            res.status(500).json({ message: 'Error al actualizar la transacción' });
+            res.status(500).json({ message: 'Error al actualizar' });
         }
-};
+    };
 }

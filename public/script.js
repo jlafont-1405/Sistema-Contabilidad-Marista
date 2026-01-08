@@ -1,53 +1,128 @@
-const API_URL = '/api/transactions';
-const monthSelector = document.getElementById('monthSelector');
-
-// --- AL INICIO DEL ARCHIVO (Variables globales) ---
-let myChart = null; // Variable para guardar la instancia del gráfico
+// --- CONFIGURACIÓN ---
+const API_URL = 'http://localhost:3000/api/transactions';
+let myChart = null;
 let editingId = null;
 
-// 1. Inicialización
+// --- INICIALIZACIÓN ---
 document.addEventListener('DOMContentLoaded', () => {
-    // Poner el mes actual en el selector por defecto
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    monthSelector.value = `${yyyy}-${mm}`;
+    console.log("🚀 Aplicación iniciada");
     
-    // Poner fecha de hoy en el input date
-    const dateInput = document.querySelector('input[name="date"]');
-    if(dateInput) dateInput.valueAsDate = today;
+    // 1. Verificar Auth
+    const token = localStorage.getItem('token');
+    if (!token) {
+        console.warn("🔒 No hay token, redirigiendo...");
+        window.location.href = '/login.html';
+        return;
+    }
 
-    loadData(); // Cargar datos iniciales
+    // 2. Configurar Fechas (Zona Horaria Local)
+    const dateInput = document.querySelector('input[name="date"]');
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    if(dateInput) dateInput.value = now.toISOString().slice(0,10);
+
+    const monthSelector = document.getElementById('monthSelector');
+    if(monthSelector) {
+        const yyyy = now.getFullYear();
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        monthSelector.value = `${yyyy}-${mm}`;
+        monthSelector.addEventListener('change', loadData);
+    }
+
+    // 3. LISTENERS ESTRATÉGICOS (Aquí arreglamos la "desconexión")
+    
+    // A. Botón Fijar Base
+    const btnFijarBase = document.getElementById('btnFijarBase');
+    if(btnFijarBase) btnFijarBase.addEventListener('click', updateBaseIncome);
+
+    // B. Logout
+    const btnLogout = document.getElementById('btnLogout');
+    if(btnLogout) btnLogout.addEventListener('click', () => {
+        localStorage.clear();
+        window.location.href = '/login.html';
+    });
+
+    // C. Cancelar Edición
+    const btnCancel = document.getElementById('cancelEditBtn');
+    if(btnCancel) btnCancel.addEventListener('click', cancelEdit);
+
+    // D. Cambio de Tipo (Ingreso/Egreso)
+    document.querySelectorAll('input[name="type"]').forEach(input => {
+        input.addEventListener('change', toggleCategoryColor);
+    });
+
+    // E. Submit del Formulario
+    const form = document.getElementById('transactionForm');
+    if(form) form.addEventListener('submit', handleFormSubmit);
+
+    // F. DELEGACIÓN DE EVENTOS PARA LA TABLA (Vital para botones dinámicos)
+    const tbody = document.getElementById('transactionTableBody');
+    if(tbody) {
+        tbody.addEventListener('click', (e) => {
+            // Buscar si el click fue dentro de un botón de acción
+            const btnEdit = e.target.closest('.btn-edit');
+            const btnDelete = e.target.closest('.btn-delete');
+
+            if (btnEdit) {
+                const id = btnEdit.dataset.id;
+                fetchTransactionForEdit(id);
+            }
+            if (btnDelete) {
+                const id = btnDelete.dataset.id;
+                deleteTx(id);
+            }
+        });
+    }
+
+    // Carga inicial
+    loadData();
 });
 
-// Escuchar cambios en el mes
-monthSelector.addEventListener('change', loadData);
+// --- HELPER AUTH ---
+function getAuthHeaders() {
+    return { 'Authorization': `Bearer ${localStorage.getItem('token')}` };
+}
 
-// 2. Función Maestra: Cargar Datos y Calcular Totales
+// --- LÓGICA DE DATOS ---
 async function loadData() {
-    const [year, month] = monthSelector.value.split('-');
+    console.log("🔄 Cargando datos...");
+    const month = document.getElementById('monthSelector').value;
     
     try {
-        const res = await fetch(`${API_URL}?year=${year}&month=${month}`);
+        const res = await fetch(`${API_URL}?month=${month}`, { headers: getAuthHeaders() });
+        
+        if (res.status === 401) {
+            localStorage.clear();
+            window.location.href = '/login.html';
+            return;
+        }
+
         const data = await res.json();
         
-        // Manejo defensivo por si data devuelve null o undefined
-        const transactions = data.transactions || [];
-        const baseIncome = data.baseIncome || 0;
+        // 1. Extraemos las transacciones
+        const transactions = Array.isArray(data) ? data : (data.transactions || []);
+        
+        // 2. Extraemos el presupuesto (Base) que viene del backend 👈 ¡ESTO FALTABA!
+        // Si no viene nada, asumimos 0
+        const baseAmount = data.budget || 0;
 
+        console.log(`📦 Datos: ${transactions.length} transacciones. Base: ${baseAmount}`);
+        
         renderTable(transactions);
-        calculateTotals(transactions, baseIncome);
+        
+        // 3. Pasamos AMBOS datos a la función de resumen 👈
+        updateSummary(transactions, baseAmount); 
+        
         renderChart(transactions);
 
-
     } catch (error) {
-        console.error("Error cargando datos:", error);
+        console.error("❌ Error cargando datos:", error);
     }
 }
 
-// 3. Renderizar Tabla con Colores
+// --- RENDERIZADO ---
 function renderTable(transactions) {
-    const tbody = document.getElementById('tableBody');
+    const tbody = document.getElementById('transactionTableBody');
     tbody.innerHTML = '';
 
     transactions.forEach(tx => {
@@ -55,111 +130,190 @@ function renderTable(transactions) {
         const isIncome = tx.type === 'ingreso';
         const colorClass = isIncome ? 'text-green-600' : 'text-red-600';
         const sign = isIncome ? '+' : '-';
-        // Iconos según categoría o tipo
-        const icon = tx.category === 'Asignación Provincial' ? '🏛️' : (isIncome ? '💰' : '🧾');
+        
+        const typeBadge = isIncome 
+            ? `<span class="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full font-bold border border-green-200">INGRESO</span>`
+            : `<span class="bg-red-100 text-red-700 text-xs px-2 py-1 rounded-full font-bold border border-red-200">EGRESO</span>`;
 
-        // CORRECCIÓN IMPORTANTE: Si tx.imageUrl viene de Cloudinary, ya trae 'https://...'. 
-        // Quitamos la barra '/' inicial en el href para que no busque en localhost.
         const imageHtml = tx.imageUrl 
-            ? `<a href="${tx.imageUrl}" target="_blank" class="text-blue-500 hover:text-blue-700" title="Ver Factura">
-                 <i class="ph ph-image text-xl"></i>
-               </a>` 
-            : '<span class="text-gray-300">-</span>';
+            ? `<a href="${tx.imageUrl}" target="_blank" class="text-blue-500 hover:text-blue-700 block text-center">📷</a>` 
+            : '<span class="text-gray-300 block text-center">-</span>';
 
-        const row = `
-            <tr class="border-b hover:bg-gray-50 transition">
-                <td class="p-3 text-gray-500">${date}</td>
-                <td class="p-3 font-medium">
-                    ${tx.description} <br> 
-                    <span class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded border">${tx.category}</span>
-                </td>
-                <td class="p-3">
-                    <span class="text-xs font-bold ${isIncome ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'} px-2 py-1 rounded-full border border-opacity-20">
-                        ${tx.type.toUpperCase()}
-                    </span>
-                </td>
-                <td class="p-3 text-right font-bold ${colorClass}">${sign}$${tx.amount.toFixed(2)}</td>
-                <td class="p-3 text-center">${imageHtml}</td>
-                <td class="p-3 text-center flex justify-center gap-2">
-                <button onclick='startEdit(${JSON.stringify(tx)})' class="text-gray-400 hover:text-blue-500 transition p-2 rounded hover:bg-blue-50">
-                    <i class="ph ph-pencil-simple text-lg"></i>
-                </button>
-                
-                <button onclick="deleteTx('${tx._id}')" class="text-gray-400 hover:text-red-500 transition p-2 rounded hover:bg-red-50">
-                    <i class="ph ph-trash text-lg"></i>
-                </button>
-</td>
-            </tr>
+        const row = document.createElement('tr');
+        row.className = "border-b hover:bg-gray-50 transition";
+        row.innerHTML = `
+            <td class="p-3 text-gray-500 font-medium">${date}</td>
+            <td class="p-3">
+                <div class="font-bold text-gray-700">${tx.description}</div>
+                <div class="text-xs text-gray-400 mt-1 uppercase tracking-wide">${tx.category || 'General'}</div>
+            </td>
+            <td class="p-3 text-center">${typeBadge}</td>
+            <td class="p-3 text-right font-bold text-base ${colorClass}">${sign}$${Number(tx.amount).toFixed(2)}</td>
+            <td class="p-3">${imageHtml}</td>
+            <td class="p-3 text-center">
+                <div class="flex justify-center gap-2">
+                    <button class="btn-edit p-2 text-yellow-500 hover:bg-yellow-50 rounded transition" data-id="${tx._id}" title="Editar">✏️</button>
+                    <button class="btn-delete p-2 text-red-500 hover:bg-red-50 rounded transition" data-id="${tx._id}" title="Eliminar">🗑️</button>
+                </div>
+            </td>
         `;
-        tbody.innerHTML += row;
+        tbody.appendChild(row);
     });
 }
 
-// 4. Calcular Matemáticas Financieras
-function calculateTotals(transactions, baseIncome) {
-    let totalIngresos = 0; // Suma de ingresos extra
-    let totalEgresos = 0;
-
-    transactions.forEach(tx => {
-        if (tx.type === 'ingreso') totalIngresos += tx.amount;
-        else totalEgresos += tx.amount;
-    });
-
-    // Matemática final: (Base + Ingresos Extra) - Gastos
-    const finalBalance = (baseIncome + totalIngresos) - totalEgresos;
-
-    // Actualizar UI
-    const baseDisplay = document.getElementById('baseIncomeDisplay');
-    if(baseDisplay) baseDisplay.textContent = `$${baseIncome.toFixed(2)}`;
-
-    const totalIncDisplay = document.getElementById('totalIncomeDisplay');
-    if(totalIncDisplay) totalIncDisplay.textContent = `$${(baseIncome + totalIngresos).toFixed(2)}`;
-
-    const totalExpDisplay = document.getElementById('totalExpenseDisplay');
-    if(totalExpDisplay) totalExpDisplay.textContent = `$${totalEgresos.toFixed(2)}`;
-    
-    const balanceEl = document.getElementById('finalBalanceDisplay');
-    if (balanceEl) {
-        balanceEl.textContent = `$${finalBalance.toFixed(2)}`;
-        // Quitamos clases previas y añadimos las nuevas según el signo
-        balanceEl.className = `text-3xl font-bold ${finalBalance >= 0 ? 'text-green-600' : 'text-red-600'}`;
-    }
-}
-
-// 5. Fijar Monto Base del Mes
-async function updateBaseIncome() {
-    const amount = prompt("Ingrese el monto base asignado para este mes (Ej: 500):");
-    if (!amount || isNaN(amount)) return;
-
-    try {
-        const res = await fetch(`${API_URL}/budget`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                monthStr: monthSelector.value, 
-                amount: Number(amount) 
-            })
-        });
-
-        if (res.ok) loadData(); 
-    } catch (error) {
-        console.error("Error actualizando presupuesto:", error);
-    }
-}
-
-// 6. Cambios visuales en el formulario
-function toggleCategoryColor() {
-    const typeInputs = document.querySelectorAll('input[name="type"]');
-    // Encontrar cuál está checkeado
-    let type = 'egreso';
-    typeInputs.forEach(input => {
-        if(input.checked) type = input.value;
-    });
+// --- FORMULARIO Y ACCIONES ---
+async function handleFormSubmit(e) {
+    e.preventDefault();
+    console.log("💾 Intentando guardar...");
 
     const btn = document.getElementById('saveBtn');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="loader"></span> Procesando...';
+
+    const formData = new FormData(e.target);
+
+    try {
+        let url = API_URL;
+        let method = 'POST';
+
+        if (editingId) {
+            url = `${API_URL}/${editingId}`;
+            method = 'PUT'; // Ojo: Express debe soportar PUT en esta ruta
+        }
+
+        console.log(`📡 Enviando ${method} a ${url}`);
+
+        const res = await fetch(url, {
+            method: method,
+            headers: getAuthHeaders(), // Importante: fetch con FormData NO lleva Content-Type manual
+            body: formData
+        });
+
+        if (res.ok) {
+            console.log("✅ Guardado exitoso");
+            cancelEdit();
+            loadData();
+        } else {
+            const err = await res.json();
+            alert(`Error: ${err.message}`);
+            console.error("❌ Error backend:", err);
+        }
+    } catch (error) {
+        console.error("❌ Error network:", error);
+        alert("Error de conexión");
+    } finally {
+        btn.disabled = false;
+        // Restaurar texto según estado (edición o normal)
+        toggleCategoryColor(); 
+    }
+}
+
+async function fetchTransactionForEdit(id) {
+    try {
+        const res = await fetch(`${API_URL}/${id}`, { headers: getAuthHeaders() });
+        const tx = await res.json();
+        startEdit(tx);
+    } catch (error) {
+        console.error("Error obteniendo transaccion:", error);
+    }
+}
+
+function startEdit(tx) {
+    editingId = tx._id;
+    const form = document.getElementById('transactionForm');
     
-    if (type === 'ingreso') {
-        btn.innerHTML = 'Guardar Ingreso 💰'; // Usamos innerHTML para mantener iconos si los hubiera
+    form.description.value = tx.description;
+    form.amount.value = tx.amount;
+    form.category.value = tx.category;
+    form.date.value = tx.date.split('T')[0];
+
+    // Radio
+    const radio = form.querySelector(`input[name="type"][value="${tx.type}"]`);
+    if(radio) radio.checked = true;
+
+    // UI Updates
+    document.getElementById('saveBtn').innerHTML = 'Actualizar Movimiento 🔄';
+    document.getElementById('cancelEditBtn').classList.remove('hidden');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    toggleCategoryColor();
+}
+
+function cancelEdit() {
+    editingId = null;
+    document.getElementById('transactionForm').reset();
+    
+    // Restaurar fecha local hoy
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    document.querySelector('input[name="date"]').value = now.toISOString().slice(0,10);
+
+    document.getElementById('cancelEditBtn').classList.add('hidden');
+    toggleCategoryColor(); // Restaura el botón a su estado normal
+}
+
+async function deleteTx(id) {
+    if(!confirm('¿Borrar este movimiento permanentemente?')) return;
+
+    try {
+        const res = await fetch(`${API_URL}/${id}`, {
+            method: 'DELETE',
+            headers: getAuthHeaders()
+        });
+        if(res.ok) loadData();
+        else alert("No se pudo borrar");
+    } catch (error) {
+        console.error(error);
+    }
+}
+
+// --- FIJAR BASE ---
+async function updateBaseIncome() {
+    console.log("💰 Click en Fijar Base");
+    const amountStr = prompt("Ingrese el monto base (Ej: 500):");
+    if (!amountStr) return;
+
+    const amount = parseFloat(amountStr);
+    if(isNaN(amount)) {
+        alert("Número inválido");
+        return;
+    }
+
+    const month = document.getElementById('monthSelector').value;
+
+    try {
+        // OJO: Esta es la ruta que debe coincidir con el backend
+        const res = await fetch(`${API_URL}/budget`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify({ month, amount })
+        });
+
+        if(res.ok) {
+            alert("Base actualizada");
+            loadData();
+        } else {
+            console.error("Error fijando base", await res.json());
+            alert("Error al guardar base");
+        }
+    } catch (error) {
+        console.error("❌ Error de red:", error);
+    }
+}
+
+// --- UTILS ---
+function toggleCategoryColor() {
+    const isIncome = document.querySelector('input[name="type"][value="ingreso"]').checked;
+    const btn = document.getElementById('saveBtn');
+    
+    if (editingId) {
+        btn.innerHTML = 'Actualizar Movimiento 🔄';
+        btn.className = 'w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 rounded-lg transition shadow-md flex justify-center items-center gap-2';
+    } else if (isIncome) {
+        btn.innerHTML = 'Guardar Ingreso 💰';
         btn.className = 'w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition shadow-md flex justify-center items-center gap-2';
     } else {
         btn.innerHTML = 'Guardar Egreso 💸';
@@ -167,171 +321,58 @@ function toggleCategoryColor() {
     }
 }
 
-document.getElementById('transactionForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
+// Ahora recibe (transactions, baseAmount) 👈
+function updateSummary(transactions, baseAmount = 0) {
+    // 1. Sumar Ingresos y Egresos
+    const ing = transactions.filter(t => t.type === 'ingreso').reduce((a, b) => a + Number(b.amount), 0);
+    const egr = transactions.filter(t => t.type === 'egreso').reduce((a, b) => a + Number(b.amount), 0);
+    
+    // 2. Actualizar los cuadros pequeños
+    const baseEl = document.getElementById('totalBase');
+    if(baseEl) baseEl.innerText = `$${Number(baseAmount).toFixed(2)}`; // 👈 Pintamos la Base Azul
 
-    const btn = document.getElementById('saveBtn');
-    const originalContent = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<span class="loader"></span> Procesando...';
-
-    const formData = new FormData(e.target);
-
-    try {
-        let res;
-        
-        // --- DECISIÓN CLAVE ---
-        if (editingId) {
-            // MODO EDICIÓN (PUT)
-            // FormData envía multipart, pero nuestro backend espera solo los campos de texto en el PUT.
-            // Fetch con FormData funciona bien, el backend con upload.none() lo parseará.
-            res = await fetch(`${API_URL}/${editingId}`, { 
-                method: 'PUT', 
-                body: formData 
-            });
-        } else {
-            // MODO CREACIÓN (POST)
-            res = await fetch(API_URL, { method: 'POST', body: formData });
-        }
-        // ----------------------
-
-        if (res.ok) {
-            cancelEdit(); // Esto limpia el formulario y resetea variables
-            loadData();   // Recarga la tabla y gráficos
-        } else {
-            const errorData = await res.json();
-            alert(`Error: ${errorData.message}`);
-        }
-
-    } catch (error) {
-        console.error("Error:", error);
-        alert('Error de conexión.');
-    } finally {
-        btn.disabled = false;
-        // Si falló, restauramos el texto correcto según el modo
-        if (editingId) btn.innerHTML = 'Actualizar Movimiento 🔄';
-        else btn.innerHTML = originalContent;
-    }
-});
-
-// 8. Borrar
-async function deleteTx(id) {
-    if(confirm('¿Está seguro de borrar este movimiento permanentemente?')) {
-        try {
-            const res = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
-            if(res.ok) {
-                loadData();
-            } else {
-                alert("No se pudo borrar el elemento");
-            }
-        } catch (error) {
-            console.error("Error borrando:", error);
-        }
+    document.getElementById('totalIngresos').innerText = `$${ing.toFixed(2)}`;
+    document.getElementById('totalEgresos').innerText = `$${egr.toFixed(2)}`;
+    
+    // 3. Calcular Balance Final (Caja = Base + Ingresos - Egresos)
+    const balance = Number(baseAmount) + ing - egr; // 👈 Matemática corregida
+    
+    const balEl = document.getElementById('totalBalance');
+    if(balEl) {
+        balEl.innerText = `$${balance.toFixed(2)}`;
+        // Si hay dinero es blanco, si debemos es rojo
+        balEl.className = `text-3xl font-bold ${balance >= 0 ? 'text-white' : 'text-red-400'}`;
     }
 }
 
-// --- NUEVA FUNCIÓN (Pégala al final del archivo) ---
-
 function renderChart(transactions) {
-    const ctx = document.getElementById('expenseChart').getContext('2d');
+    const ctx = document.getElementById('myChart');
+    if (!ctx) return;
+    
+    const egresos = transactions.filter(t => t.type === 'egreso');
+    const categories = {};
+    
+    egresos.forEach(t => {
+        let cat = t.category || 'Otros';
+        cat = cat.charAt(0).toUpperCase() + cat.slice(1).toLowerCase();
+        categories[cat] = (categories[cat] || 0) + Number(t.amount);
+    });
 
-    // 1. Filtrar solo egresos
-    const expenses = transactions.filter(t => t.type === 'egreso');
-
-    // 2. Agrupar por categoría y sumar montos
-    // Resultado esperado: { "Alimentación": 500, "Transporte": 200 ... }
-    const totalsByCategory = expenses.reduce((acc, curr) => {
-        acc[curr.category] = (acc[curr.category] || 0) + curr.amount;
-        return acc;
-    }, {});
-
-    // 3. Preparar datos para Chart.js
-    const labels = Object.keys(totalsByCategory);
-    const dataValues = Object.values(totalsByCategory);
-
-    // Si no hay gastos, mostramos un gráfico vacío o limpiamos
-    if (labels.length === 0) {
-        if (myChart) myChart.destroy();
-        return;
-    }
-
-    // 4. Configuración de Colores (Paleta profesional)
-    const backgroundColors = [
-        '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', 
-        '#9966FF', '#FF9F40', '#C9CBCF', '#2ecc71'
-    ];
-
-    // 5. Destruir gráfico anterior si existe (IMPORTANTE para evitar bugs visuales)
-    if (myChart) {
-        myChart.destroy();
-    }
-
-    // 6. Crear el nuevo gráfico
+    if (myChart) myChart.destroy();
+    
     myChart = new Chart(ctx, {
-        type: 'doughnut', // Tipo 'torta' pero con hueco en medio (muy moderno)
+        type: 'doughnut',
         data: {
-            labels: labels,
+            labels: Object.keys(categories),
             datasets: [{
-                label: 'Gastos por Categoría',
-                data: dataValues,
-                backgroundColor: backgroundColors,
+                data: Object.values(categories),
+                backgroundColor: ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#6366F1'],
                 borderWidth: 1
             }]
         },
         options: {
             responsive: true,
-            maintainAspectRatio: false, // Se adapta al div contenedor
-            plugins: {
-                legend: {
-                    position: 'right', // Leyenda a la derecha
-                }
-            }
+            plugins: { legend: { position: 'bottom' } }
         }
     });
-}
-
-// Activar Modo Edición
-function startEdit(tx) {
-    editingId = tx._id; // Guardamos el ID que estamos editando
-    
-    // 1. Llenar el formulario con los datos
-    const form = document.getElementById('transactionForm');
-    form.description.value = tx.description;
-    form.amount.value = tx.amount;
-    form.category.value = tx.category;
-    
-    // Fecha: El input date requiere formato YYYY-MM-DD
-    const dateObj = new Date(tx.date);
-    form.date.value = dateObj.toISOString().split('T')[0];
-
-    // Radios (Ingreso/Egreso)
-    if (tx.type === 'ingreso') {
-        document.querySelector('input[name="type"][value="ingreso"]').checked = true;
-    } else {
-        document.querySelector('input[name="type"][value="egreso"]').checked = true;
-    }
-
-    // 2. Cambiar UI
-    document.getElementById('saveBtn').innerHTML = 'Actualizar Movimiento 🔄';
-    document.getElementById('cancelEditBtn').classList.remove('hidden'); // Mostrar botón cancelar
-    
-    // Scrollear hacia arriba para que vea el formulario
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    
-    toggleCategoryColor(); // Para que se ajuste el color del botón
-}
-
-// Cancelar Modo Edición
-function cancelEdit() {
-    editingId = null;
-    document.getElementById('transactionForm').reset();
-    
-    // Restaurar UI
-    document.getElementById('saveBtn').innerHTML = 'Guardar Egreso 💸';
-    document.getElementById('cancelEditBtn').classList.add('hidden');
-    
-    // Restaurar fecha hoy
-    document.querySelector('input[name="date"]').valueAsDate = new Date();
-    
-    toggleCategoryColor();
 }

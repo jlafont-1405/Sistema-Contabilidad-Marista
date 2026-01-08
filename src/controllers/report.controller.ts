@@ -1,96 +1,145 @@
 import { Request, Response } from 'express';
 import ExcelJS from 'exceljs';
-import Transaction from '../models/transaction.model'; // <--- ¡Aquí está el cambio clave!
+import Transaction from '../models/transaction.model';
 
 export class ReportController {
 
-    public downloadMonthlyReport = async (req: Request, res: Response) => {
+    public downloadExcel = async (req: Request, res: Response) => {
         try {
-            // 1. Crear el Libro de Excel
-            const workbook = new ExcelJS.Workbook();
-            const worksheet = workbook.addWorksheet('Movimientos del Mes');
-
-            // 2. Definir las Columnas (Agregamos "Tipo")
-            worksheet.columns = [
-                { header: 'Fecha', key: 'date', width: 15 },
-                { header: 'Tipo', key: 'type', width: 10 }, // Nueva columna
-                { header: 'Categoría', key: 'category', width: 20 },
-                { header: 'Descripción', key: 'description', width: 30 },
-                { header: 'Monto ($)', key: 'amount', width: 15 },
-                { header: 'Factura (Ref)', key: 'imageUrl', width: 40 }
-            ];
-
-            // 3. Obtener los datos (Ordenados por fecha)
+            // 1. Obtener TODAS las transacciones ordenadas por fecha
             const transactions = await Transaction.find().sort({ date: 1 });
 
-            // 4. Agregar las filas
-            transactions.forEach(tx => {
-                const row = worksheet.addRow({
-                    date: tx.date.toISOString().split('T')[0],
-                    type: tx.type.toUpperCase(), // INGRESO o EGRESO
-                    category: tx.category,
-                    description: tx.description,
-                    amount: tx.amount,
-                    imageUrl: tx.imageUrl || 'Sin soporte'
-                });
+            if (transactions.length === 0) {
+                return res.status(404).send("No hay movimientos para exportar.");
+            }
 
-                // Pintar de color según el tipo
-                if (tx.type === 'ingreso') {
-                    row.getCell('type').font = { color: { argb: '008000' }, bold: true }; // Verde
-                    row.getCell('amount').font = { color: { argb: '008000' } };
-                } else {
-                    row.getCell('type').font = { color: { argb: 'FF0000' }, bold: true }; // Rojo
-                    row.getCell('amount').font = { color: { argb: 'FF0000' } };
+            // 2. Crear el libro
+            const workbook = new ExcelJS.Workbook();
+            workbook.creator = 'Sistema Marista';
+            workbook.created = new Date();
+
+            // 3. Agrupar transacciones por "Mes Año" (Ej: "Enero 2026")
+            const groupedData: { [key: string]: typeof transactions } = {};
+
+            transactions.forEach(tx => {
+                // Truco para obtener el nombre del mes en español y Capitalizado
+                const date = new Date(tx.date);
+                const monthName = date.toLocaleString('es-VE', { month: 'long' });
+                const year = date.getFullYear();
+                const sheetName = `${monthName.charAt(0).toUpperCase() + monthName.slice(1)} ${year}`;
+
+                if (!groupedData[sheetName]) {
+                    groupedData[sheetName] = [];
                 }
+                groupedData[sheetName].push(tx);
             });
 
-            // 5. Estilo Profesional (Negritas en la cabecera)
-            worksheet.getRow(1).font = { bold: true, size: 12, color: { argb: 'FFFFFF' } };
-            worksheet.getRow(1).fill = {
-                type: 'pattern',
-                pattern: 'solid',
-                fgColor: { argb: '000080' } // Fondo Azul
-            };
-            
-            // Calcular Balance Final
-            const totalIngresos = transactions
-                .filter(t => t.type === 'ingreso')
-                .reduce((sum, t) => sum + t.amount, 0);
+            // 4. Generar una Hoja por cada Grupo (Mes)
+            for (const [sheetName, monthTxs] of Object.entries(groupedData)) {
+                
+                // Crear la hoja (Tab)
+                const worksheet = workbook.addWorksheet(sheetName);
 
-            const totalEgresos = transactions
-                .filter(t => t.type === 'egreso')
-                .reduce((sum, t) => sum + t.amount, 0);
+                // Definir Columnas
+                worksheet.columns = [
+                    { header: 'Fecha', key: 'date', width: 12 },
+                    { header: 'Tipo', key: 'type', width: 10 },
+                    { header: 'Categoría', key: 'category', width: 20 },
+                    { header: 'Descripción', key: 'description', width: 35 },
+                    { header: 'Monto', key: 'amount', width: 15 }, // Sin símbolo $ aquí para formato numérico
+                    { header: 'Soporte', key: 'link', width: 12 }, // Link a la foto
+                ];
 
-            const balance = totalIngresos - totalEgresos;
+                // Estilo del Encabezado
+                const headerRow = worksheet.getRow(1);
+                headerRow.font = { bold: true, color: { argb: 'FFFFFF' } };
+                headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '003366' } }; // Azul oscuro institucional
+                headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+                
+                // Agregar Filtros automáticos a los encabezados
+                worksheet.autoFilter = {
+                    from: 'A1',
+                    to: { row: 1, column: 6 }
+                };
 
-            worksheet.addRow({}); // Fila vacía
-            
-            // Fila de Resumen
-            const totalRow = worksheet.addRow(['', '', '', 'BALANCE FINAL:', balance]);
-            totalRow.font = { bold: true, size: 14 };
-            // Color del balance
-            totalRow.getCell(5).font = { 
-                bold: true, 
-                color: { argb: balance >= 0 ? '008000' : 'FF0000' } 
-            };
+                // Llenar datos del mes
+                let totalIngresos = 0;
+                let totalEgresos = 0;
 
-            // 6. Configurar la respuesta HTTP
-            res.setHeader(
-                'Content-Type',
-                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            );
-            res.setHeader(
-                'Content-Disposition',
-                'attachment; filename=' + 'Reporte_Marista.xlsx'
-            );
+                monthTxs.forEach(tx => {
+                    // Sumar para balances
+                    if (tx.type === 'ingreso') totalIngresos += tx.amount;
+                    else totalEgresos += tx.amount;
 
-            // 7. Escribir el archivo
+                    const row = worksheet.addRow({
+                        date: new Date(tx.date), // Pasamos objeto Date para formato Excel
+                        type: tx.type.toUpperCase(),
+                        category: tx.category,
+                        description: tx.description,
+                        amount: tx.amount,
+                        link: tx.imageUrl ? 'Ver Soporte 🔗' : '-'
+                    });
+
+                    // FORMATO DE CELDAS
+
+                    // 1. Fecha
+                    row.getCell('date').numFmt = 'dd/mm/yyyy';
+                    row.getCell('date').alignment = { horizontal: 'center' };
+
+                    // 2. Colores de Ingreso/Egreso
+                    const color = tx.type === 'ingreso' ? '008000' : 'FF0000'; // Verde : Rojo
+                    row.getCell('type').font = { color: { argb: color }, bold: true };
+                    row.getCell('type').alignment = { horizontal: 'center' };
+                    row.getCell('amount').font = { color: { argb: color } };
+
+                    // 3. Formato Moneda (Contabilidad)
+                    row.getCell('amount').numFmt = '"$"#,##0.00;[Red]"\$"#,##0.00';
+
+                    // 4. Hipervínculo a la imagen (Si existe)
+                    if (tx.imageUrl) {
+                        const cell = row.getCell('link');
+                        cell.value = { text: 'Ver Foto 📷', hyperlink: tx.imageUrl };
+                        cell.font = { color: { argb: '0000FF' }, underline: true };
+                    }
+                });
+
+                // --- AGREGAR BALANCE FINAL DEL MES AL PIE DE PÁGINA ---
+                worksheet.addRow([]); // Espacio vacío
+                
+                const balance = totalIngresos - totalEgresos;
+                const lastRowIdx = worksheet.rowCount + 1;
+                
+                // Fila de Totales
+                const balanceRow = worksheet.getRow(lastRowIdx);
+                balanceRow.getCell(4).value = 'BALANCE DEL MES:';
+                balanceRow.getCell(4).font = { bold: true };
+                balanceRow.getCell(4).alignment = { horizontal: 'right' };
+
+                const balanceCell = balanceRow.getCell(5);
+                balanceCell.value = balance;
+                balanceCell.numFmt = '"$"#,##0.00';
+                balanceCell.font = { 
+                    bold: true, 
+                    size: 12, 
+                    color: { argb: balance >= 0 ? '008000' : 'FF0000' } 
+                };
+                
+                // Agregar un pequeño cuadro resumen abajo
+                worksheet.addRow([]);
+                worksheet.addRow(['', '', '', 'Total Ingresos:', totalIngresos]);
+                worksheet.addRow(['', '', '', 'Total Egresos:', totalEgresos]);
+            }
+
+            // 5. Enviar respuesta
+            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            res.setHeader('Content-Disposition', 'attachment; filename=Contabilidad_Marista_Completa.xlsx');
+
             await workbook.xlsx.write(res);
             res.end();
 
         } catch (error) {
             console.error(error);
-            res.status(500).send('Error al generar el reporte Excel');
+            res.status(500).send('Error generando Excel');
         }
-    };
+    }
 }

@@ -4,7 +4,7 @@ import { ReportController } from '../controllers/report.controller';
 const router = Router();
 const controller = new ReportController();
 
-// GET /api/reports/excel
-router.get('/excel', controller.downloadMonthlyReport);
+// 👇 Aquí es donde fallaba. Asegúrate que diga .downloadExcel
+router.get('/excel', controller.downloadExcel);
 
 export default router;
