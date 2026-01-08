@@ -1,6 +1,6 @@
 // --- CONFIGURACIÓN ---
-const API_URL = '/api';
-let myChart = null;
+// Lo que necesitas (Correcto)
+const API_URL = '/api/transactions';let myChart = null;
 let editingId = null;
 
 // --- INICIALIZACIÓN ---
