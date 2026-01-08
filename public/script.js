@@ -1,5 +1,5 @@
 // --- CONFIGURACIÓN ---
-const API_URL = 'http://localhost:3000/api/transactions';
+const API_URL = '/api';
 let myChart = null;
 let editingId = null;
 
