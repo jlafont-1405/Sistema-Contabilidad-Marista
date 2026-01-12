@@ -99,19 +99,31 @@ async function loadData() {
 
         const data = await res.json();
         
-        // 1. Extraemos las transacciones
         const transactions = Array.isArray(data) ? data : (data.transactions || []);
-        
-        // 2. Extraemos el presupuesto (Base) que viene del backend 👈 ¡ESTO FALTABA!
-        // Si no viene nada, asumimos 0
         const baseAmount = data.budget || 0;
 
         console.log(`📦 Datos: ${transactions.length} transacciones. Base: ${baseAmount}`);
         
         renderTable(transactions);
         
-        // 3. Pasamos AMBOS datos a la función de resumen 👈
-        updateSummary(transactions, baseAmount); 
+        // --- ⚡ EFECTO V2.0: ANIMACIÓN DE TOTALES ⚡ ---
+        // Calculamos los totales antes de animar
+        const ingresos = transactions
+            .filter(t => t.type === 'ingreso')
+            .reduce((sum, t) => sum + t.amount, 0);
+            
+        const egresos = transactions
+            .filter(t => t.type === 'egreso')
+            .reduce((sum, t) => sum + t.amount, 0);
+
+        const balanceFinal = (baseAmount + ingresos) - egresos;
+
+        // Disparamos las animaciones individuales
+        animateNumber('totalBase', baseAmount);
+        animateNumber('totalIngresos', ingresos);
+        animateNumber('totalEgresos', egresos);
+        animateNumber('totalBalance', balanceFinal);
+        // ----------------------------------------------
         
         renderChart(transactions);
 
@@ -119,7 +131,6 @@ async function loadData() {
         console.error("❌ Error cargando datos:", error);
     }
 }
-
 // --- RENDERIZADO ---
 function renderTable(transactions) {
     const tbody = document.getElementById('transactionTableBody');
@@ -192,6 +203,10 @@ async function handleFormSubmit(e) {
 
         if (res.ok) {
             console.log("✅ Guardado exitoso");
+            // 📳 NUEVO: Vibración corta al guardar con éxito
+        if (window.navigator && window.navigator.vibrate) {
+            window.navigator.vibrate(50); 
+        }
             cancelEdit();
             loadData();
         } else {
@@ -384,4 +399,41 @@ function toggleForm() {
     if (window.innerWidth < 1024) {
         container.classList.toggle('form-open');
     }
+}
+
+/**
+ * Anima un número desde 0 hasta el valor final
+ * @param {string} id - El ID del elemento HTML
+ * @param {number} endValue - El número final al que llegar
+ */
+function animateNumber(id, endValue) {
+    const element = document.getElementById(id);
+    if (!element) return;
+
+    let startValue = 0;
+    const duration = 1000; // 1 segundo de duración
+    const frameRate = 60; // 60 cuadros por segundo para suavidad total
+    const totalFrames = Math.round(duration / (1000 / frameRate));
+    const increment = endValue / totalFrames;
+    let currentFrame = 0;
+
+    const counter = setInterval(() => {
+        currentFrame++;
+        startValue += increment;
+
+        // Formatear como moneda mientras cuenta
+        element.innerText = new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD'
+        }).format(startValue);
+
+        if (currentFrame >= totalFrames) {
+            // Asegurar que termine en el número exacto
+            element.innerText = new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+            }).format(endValue);
+            clearInterval(counter);
+        }
+    }, 1000 / frameRate);
 }
