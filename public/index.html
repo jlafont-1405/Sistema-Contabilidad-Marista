@@ -8,6 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏦</text></svg>">
     
     <link rel="stylesheet" href="index.css"> 
 </head>
@@ -106,22 +107,44 @@
 </aside>
             <section class="lg:col-span-2 space-y-6">
                 
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div class="bg-white p-5 rounded-2xl shadow-md border-l-8 border-blue-500">
-                        <p class="text-xs text-gray-400 font-black uppercase tracking-wider">Total Base</p>
-                        <h3 id="totalBase" class="text-2xl font-black text-blue-600 mt-1">$0.00</h3>
-                    </div>
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    
+    <div class="bg-gradient-to-br from-blue-600 to-blue-800 p-5 rounded-2xl shadow-lg transform transition hover:scale-105">
+        <div class="flex justify-between items-start">
+            <div>
+                <p class="text-xs text-blue-200 font-bold uppercase tracking-wider">Total Base</p>
+                <h3 id="totalBase" class="text-2xl font-black text-white mt-1">$0.00</h3>
+            </div>
+            <div class="p-2 bg-white/20 rounded-lg text-white">
+                <i class="ph ph-bank text-xl"></i>
+            </div>
+        </div>
+    </div>
 
-                    <div class="bg-white p-5 rounded-2xl shadow-md border-l-8 border-green-500">
-                        <p class="text-xs text-gray-400 font-black uppercase tracking-wider">Total Ingresos</p>
-                        <h3 id="totalIngresos" class="text-2xl font-black text-green-600 mt-1">$0.00</h3>
-                    </div>
+    <div class="bg-gradient-to-br from-emerald-500 to-green-700 p-5 rounded-2xl shadow-lg transform transition hover:scale-105">
+        <div class="flex justify-between items-start">
+            <div>
+                <p class="text-xs text-green-100 font-bold uppercase tracking-wider">Total Ingresos</p>
+                <h3 id="totalIngresos" class="text-2xl font-black text-white mt-1">$0.00</h3>
+            </div>
+            <div class="p-2 bg-white/20 rounded-lg text-white">
+                <i class="ph ph-trend-up text-xl"></i>
+            </div>
+        </div>
+    </div>
 
-                    <div class="bg-white p-5 rounded-2xl shadow-md border-l-8 border-red-500">
-                        <p class="text-xs text-gray-400 font-black uppercase tracking-wider">Total Egresos</p>
-                        <h3 id="totalEgresos" class="text-2xl font-black text-red-600 mt-1">$0.00</h3>
-                    </div>
-                </div>
+    <div class="bg-gradient-to-br from-rose-500 to-red-700 p-5 rounded-2xl shadow-lg transform transition hover:scale-105">
+        <div class="flex justify-between items-start">
+            <div>
+                <p class="text-xs text-rose-100 font-bold uppercase tracking-wider">Total Egresos</p>
+                <h3 id="totalEgresos" class="text-2xl font-black text-white mt-1">$0.00</h3>
+            </div>
+            <div class="p-2 bg-white/20 rounded-lg text-white">
+                <i class="ph ph-trend-down text-xl"></i>
+            </div>
+        </div>
+    </div>
+</div>
 
                 <div class="bg-gradient-to-r from-slate-800 to-slate-900 text-white p-6 rounded-2xl shadow-2xl flex flex-col sm:flex-row justify-between items-center gap-4 border-b-4 border-yellow-500">
                     <div class="flex items-center gap-3">

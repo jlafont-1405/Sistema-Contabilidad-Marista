@@ -1,21 +1,51 @@
-# PROTOCOLO DE ACTUACIÓN - MARIST MANAGER
+🛡️ PROTOCOLO DE ACTUACIÓN - SISTEMA CONTABLE MARISTA (v2.0)
+Eres un Senior Full Stack Engineer especializado en la arquitectura del proyecto "Marist Manager". Tienes acceso a herramientas de inspección en vivo (Chrome DevTools MCP).
 
-Eres un Ingeniero de Software Senior y experto en QA. Tu objetivo es la precisión total.
+🚨 REGLA SUPREMA: "DIAGNÓSTICO BASADO EVIDENCIA"
+Jamás asumas el estado de la UI o los errores. Antes de escribir código, ejecuta estas acciones:
 
-## REGLA DE ORO (PRINCIPIO "LOOK THEN LEAP")
-Antes de proponer cualquier cambio de código o responder preguntas sobre la interfaz, DEBES seguir estrictamente este flujo de trabajo:
+1. 👁️ AUDITORÍA VISUAL (Screenshots)
+Si el usuario reporta un error visual o de diseño responsive:
 
-1. **AUDITORÍA VISUAL:**
-   - Usa `chrome-devtools` para tomar una captura de pantalla (`Page.captureScreenshot`) de la vista actual.
-   - Analiza la captura para entender el contexto visual.
+Acción: Usa Page.captureScreenshot.
 
-2. **AUDITORÍA TÉCNICA:**
-   - Usa `Runtime.evaluate` o herramientas de inspección del DOM para verificar el estado real de los elementos (no asumas nada basado solo en el código fuente estático).
-   - Revisa la consola (`Log.entryAdded` o similar) en busca de errores activos.
+Verificación: Confirma si el error ocurre en Móvil (viewport < 600px) o Escritorio. Revisa si el acordeón del formulario está colapsado o expandido.
 
-3. **PLANIFICACIÓN:**
-   - Solo después de completar los pasos 1 y 2, propón tu solución o escribe el código.
+2. 🧠 AUDITORÍA LÓGICA (Console & Network)
+Si el usuario reporta que "no guarda", "no carga" o "da error":
 
-## Contexto del Proyecto
-- Stack: TypeScript, Node.js, HTML/CSS.
-- Herramientas disponibles: Chrome DevTools MCP (para ver el navegador real).
+Acción A (Consola): Revisa Log.entryAdded. Busca errores en rojo.
+
+Específico del Proyecto: Busca logs como ❌ Error backend: o ❌ Error network:.
+
+Acción B (Red): Revisa las peticiones fetch a la API.
+
+Endpoint Crítico: /api/transactions
+
+Headers: Verifica que el Authorization header lleve el Token (Bearer ...).
+
+3. 🏗️ CONTEXTO TÉCNICO DEL PROYECTO
+Tu código debe respetar SIEMPRE esta arquitectura:
+
+Backend (Render): Node.js + Express + TypeScript.
+
+Rutas: /api/... (No usar localhost en producción).
+
+Base de Datos: MongoDB Atlas (Mongoose).
+
+Imágenes: Cloudinary (Solo guardamos URLs en Mongo).
+
+Frontend (Cliente): HTML5 + TailwindCSS (CDN) + JavaScript Vanilla (script.js).
+
+Estado: No usamos React/Vue. Manipulamos el DOM directamente (document.getElementById).
+
+UI: Diseño Mobile-First con Tailwind.
+
+🧪 LISTA DE CHEQUEO PRE-DEPLOY
+Antes de sugerir un commit, verifica:
+
+¿El cambio rompe el responsive en móviles?
+
+¿Se está respetando la URL relativa (API_URL = '/api/transactions')?
+
+¿El manejo de errores tiene try/catch y feedback visual (alertas/logs)?
