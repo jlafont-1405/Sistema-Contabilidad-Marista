@@ -145,7 +145,9 @@ public deleteAccount = async (req: Request, res: Response) => {
 
             // 3. Configurar el "Cartero" (Gmail)
             const transporter = nodemailer.createTransport({
-                service: 'gmail',
+                host: "smtp.gmail.com",
+                port: 465,
+                secure: true, // IMPORTANTE: true para puerto 465
                 auth: {
                     user: process.env.EMAIL_USER, // Tu correo
                     pass: process.env.EMAIL_PASS  // Tu contraseña de aplicación de 16 letras
