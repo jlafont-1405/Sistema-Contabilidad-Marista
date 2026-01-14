@@ -5,8 +5,10 @@ import Transaction from '../models/transaction.model';
 import Budget from '../models/budget.model';           
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secreto_super_seguro_marista';
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export class AuthController {
 
@@ -116,15 +118,12 @@ public deleteAccount = async (req: Request, res: Response) => {
     }
 };
 
-// 4. OLVIDÉ CONTRASEÑA (Versión Final con Gmail 📧)
+// 4. OLVIDÉ CONTRASEÑA (Versión Final con API RESEND 📧)
     public forgotPassword = async (req: Request, res: Response) => {
-        // 👇 CORRECCIÓN 1: Definimos 'user' aquí afuera para que el 'catch' la pueda ver
         let user: any; 
 
         try {
             const { email } = req.body;
-            
-            // 👇 CORRECCIÓN 2: Quitamos 'const' porque ya la definimos arriba
             user = await User.findOne({ email });
 
             if (!user) {
@@ -136,33 +135,18 @@ public deleteAccount = async (req: Request, res: Response) => {
             user.resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
             user.resetPasswordExpire = new Date(Date.now() + 10 * 60 * 1000); // 10 min
 
-            // Guardamos el token antes de intentar enviar el correo
             await user.save();
 
             const baseUrl = process.env.CLIENT_URL || 'http://localhost:3000';
             // 2. URL del Frontend
             const resetUrl = `${baseUrl}/reset-password.html?token=${resetToken}`;
 
-            // 3. Configurar el "Cartero" (Gmail)
-            const transporter = nodemailer.createTransport({
-                host: "smtp.gmail.com",
-                port: 587,
-                secure: false, // IMPORTANTE: true para puerto 465
-                auth: {
-                    user: process.env.EMAIL_USER, // Tu correo
-                    pass: process.env.EMAIL_PASS  // Tu contraseña de aplicación de 16 letras
-                },
-                tls: {
-                    rejectUnauthorized: false
-                },
-                // 👇 ESTA ES LA MAGIA PARA ARREGLAR EL TIMEOUT EN RENDER:
-                family: 4 // Obliga a usar IPv4 (evita bloqueos de IPv6)
-            } as any);
-
-            // 4. Configurar el Mensaje
-            const mailOptions = {
-                from: `"Soporte Marist Manager" <${process.env.EMAIL_USER}>`,
-                to: user.email,
+            // 👇👇 AQUÍ ESTÁ EL CAMBIO IMPORTANTE (RESEND) 👇👇
+            
+            // 3. Enviar correo usando la API de Resend (Sin puertos bloqueados)
+            const { data, error } = await resend.emails.send({
+                from: 'Marist Manager <onboarding@resend.dev>', // OBLIGATORIO usar este correo si no tienes dominio propio
+                to: [user.email], // En modo prueba, solo llegará si es el mismo correo con el que te registraste en Resend
                 subject: 'Recuperar Contraseña - Marist Manager 🔐',
                 html: `
                     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
@@ -175,18 +159,21 @@ public deleteAccount = async (req: Request, res: Response) => {
                         <p style="font-size: 14px; color: #999; text-align: center;">Este enlace expira en 10 minutos.</p>
                     </div>
                 `
-            };
+            });
 
-            // 5. Enviar
-            await transporter.sendMail(mailOptions);
+            if (error) {
+                console.error("🔴 Error API Resend:", error);
+                // Lanzamos error manualmente para que caiga en el catch y limpie el token
+                throw new Error("No se pudo enviar el email");
+            }
 
-            console.log(`✅ Correo enviado a ${user.email}`);
+            console.log(`✅ Correo enviado con ID: ${data?.id}`);
             res.status(200).json({ success: true, message: 'Correo enviado. Revisa tu bandeja de entrada.' });
 
         } catch (error) {
-            console.error("🔴 Error enviando correo:", error);
+            console.error("🔴 Error general:", error);
             
-            // 👇 AHORA SÍ FUNCIONA: Si falló el correo, borramos el token para no dejarlo 'sucio'
+            // Limpieza del token si falla el envío
             if (user) {
                 user.resetPasswordToken = undefined;
                 user.resetPasswordExpire = undefined;
