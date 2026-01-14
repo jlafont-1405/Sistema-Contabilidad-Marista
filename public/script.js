@@ -146,9 +146,10 @@ function renderTable(transactions) {
             ? `<span class="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full font-bold border border-green-200">INGRESO</span>`
             : `<span class="bg-red-100 text-red-700 text-xs px-2 py-1 rounded-full font-bold border border-red-200">EGRESO</span>`;
 
-        const imageHtml = tx.imageUrl 
-            ? `<a href="${tx.imageUrl}" target="_blank" class="text-blue-500 hover:text-blue-700 block text-center">📷</a>` 
-            : '<span class="text-gray-300 block text-center">-</span>';
+        // En renderTable:
+const imageHtml = tx.imageUrl 
+    ? `<button onclick="showImage('${tx.imageUrl}', '${tx.description}')" class="text-blue-500 hover:text-blue-700 block text-center text-lg">📷</button>` 
+    : '<span class="text-gray-300 block text-center">-</span>';
 
         const row = document.createElement('tr');
         row.className = "border-b hover:bg-gray-50 transition";
@@ -178,7 +179,8 @@ async function handleFormSubmit(e) {
     console.log("💾 Intentando guardar...");
 
     const btn = document.getElementById('saveBtn');
-    const originalText = btn.innerHTML;
+    // Guardamos texto original del botón dinámico (puede ser "Guardar Ingreso" o "Guardar Egreso")
+    // Lo ideal es regenerarlo al final con toggleCategoryColor, así que solo ponemos el spinner
     btn.disabled = true;
     btn.innerHTML = '<span class="loader"></span> Procesando...';
 
@@ -190,37 +192,48 @@ async function handleFormSubmit(e) {
 
         if (editingId) {
             url = `${API_URL}/${editingId}`;
-            method = 'PUT'; // Ojo: Express debe soportar PUT en esta ruta
+            method = 'PUT';
         }
-
-        console.log(`📡 Enviando ${method} a ${url}`);
 
         const res = await fetch(url, {
             method: method,
-            headers: getAuthHeaders(), // Importante: fetch con FormData NO lleva Content-Type manual
+            headers: getAuthHeaders(),
             body: formData
         });
 
         if (res.ok) {
-            console.log("✅ Guardado exitoso");
-            // 📳 NUEVO: Vibración corta al guardar con éxito
-        if (window.navigator && window.navigator.vibrate) {
-            window.navigator.vibrate(50); 
-        }
-            cancelEdit();
-            loadData();
+            // 📳 Vibración
+            if (window.navigator && window.navigator.vibrate) {
+                window.navigator.vibrate(50); 
+            }
+            
+            cancelEdit(); // Limpia el form
+            loadData();   // Recarga la tabla
+
+            // ✨ TOAST DE ÉXITO (No bloquea la pantalla)
+            const Toast = Swal.mixin({
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000,
+                timerProgressBar: true
+            });
+            
+            Toast.fire({
+                icon: 'success',
+                title: editingId ? 'Movimiento actualizado' : 'Movimiento guardado'
+            });
+
         } else {
             const err = await res.json();
-            alert(`Error: ${err.message}`);
-            console.error("❌ Error backend:", err);
+            Swal.fire('Error', err.message || 'Error al guardar', 'error');
         }
     } catch (error) {
         console.error("❌ Error network:", error);
-        alert("Error de conexión");
+        Swal.fire('Error', 'Error de conexión', 'error');
     } finally {
         btn.disabled = false;
-        // Restaurar texto según estado (edición o normal)
-        toggleCategoryColor(); 
+        toggleCategoryColor(); // Restaura el texto y color correcto del botón
     }
 }
 
@@ -268,36 +281,71 @@ function cancelEdit() {
 }
 
 async function deleteTx(id) {
-    if(!confirm('¿Borrar este movimiento permanentemente?')) return;
+    // Usamos SweetAlert para confirmar
+    const result = await Swal.fire({
+        title: '¿Borrar movimiento?',
+        text: "No podrás deshacer esta acción",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Sí, borrar',
+        cancelButtonText: 'Cancelar'
+    });
+
+    // Si el usuario dijo que NO, salimos de la función
+    if (!result.isConfirmed) return;
 
     try {
         const res = await fetch(`${API_URL}/${id}`, {
             method: 'DELETE',
             headers: getAuthHeaders()
         });
-        if(res.ok) loadData();
-        else alert("No se pudo borrar");
+        
+        if(res.ok) {
+            // Opcional: Una mini alerta de éxito o solo recargar
+            Swal.fire({
+                title: 'Eliminado',
+                icon: 'success',
+                timer: 1500, // Se cierra sola en 1.5 seg
+                showConfirmButton: false
+            });
+            loadData();
+        } else {
+            Swal.fire('Error', "No se pudo borrar el movimiento", 'error');
+        }
     } catch (error) {
         console.error(error);
+        Swal.fire('Error', 'Fallo de red al intentar borrar', 'error');
     }
 }
 
 // --- FIJAR BASE ---
 async function updateBaseIncome() {
     console.log("💰 Click en Fijar Base");
-    const amountStr = prompt("Ingrese el monto base (Ej: 500):");
-    if (!amountStr) return;
+    
+    // Reemplazo del prompt nativo
+    const { value: amountStr } = await Swal.fire({
+        title: 'Fijar Base Mensual',
+        input: 'number',
+        inputLabel: 'Ingresa el monto inicial del mes',
+        inputPlaceholder: 'Ej: 500',
+        showCancelButton: true,
+        confirmButtonText: 'Guardar',
+        cancelButtonText: 'Cancelar',
+        inputValidator: (value) => {
+            if (!value) {
+                return '¡Necesitas escribir un monto!';
+            }
+        }
+    });
+
+    if (!amountStr) return; // Si canceló o no puso nada
 
     const amount = parseFloat(amountStr);
-    if(isNaN(amount)) {
-        alert("Número inválido");
-        return;
-    }
-
     const month = document.getElementById('monthSelector').value;
 
     try {
-        // OJO: Esta es la ruta que debe coincidir con el backend
         const res = await fetch(`${API_URL}/budget`, {
             method: 'POST',
             headers: {
@@ -308,14 +356,15 @@ async function updateBaseIncome() {
         });
 
         if(res.ok) {
-            alert("Base actualizada");
+            Swal.fire('¡Éxito!', 'Base actualizada correctamente', 'success');
             loadData();
         } else {
-            console.error("Error fijando base", await res.json());
-            alert("Error al guardar base");
+            const err = await res.json();
+            Swal.fire('Error', 'No se pudo guardar la base', 'error');
         }
     } catch (error) {
         console.error("❌ Error de red:", error);
+        Swal.fire('Error', 'Error de conexión', 'error');
     }
 }
 
@@ -336,29 +385,7 @@ function toggleCategoryColor() {
     }
 }
 
-// Ahora recibe (transactions, baseAmount) 👈
-function updateSummary(transactions, baseAmount = 0) {
-    // 1. Sumar Ingresos y Egresos
-    const ing = transactions.filter(t => t.type === 'ingreso').reduce((a, b) => a + Number(b.amount), 0);
-    const egr = transactions.filter(t => t.type === 'egreso').reduce((a, b) => a + Number(b.amount), 0);
-    
-    // 2. Actualizar los cuadros pequeños
-    const baseEl = document.getElementById('totalBase');
-    if(baseEl) baseEl.innerText = `$${Number(baseAmount).toFixed(2)}`; // 👈 Pintamos la Base Azul
 
-    document.getElementById('totalIngresos').innerText = `$${ing.toFixed(2)}`;
-    document.getElementById('totalEgresos').innerText = `$${egr.toFixed(2)}`;
-    
-    // 3. Calcular Balance Final (Caja = Base + Ingresos - Egresos)
-    const balance = Number(baseAmount) + ing - egr; // 👈 Matemática corregida
-    
-    const balEl = document.getElementById('totalBalance');
-    if(balEl) {
-        balEl.innerText = `$${balance.toFixed(2)}`;
-        // Si hay dinero es blanco, si debemos es rojo
-        balEl.className = `text-3xl font-bold ${balance >= 0 ? 'text-white' : 'text-red-400'}`;
-    }
-}
 
 function renderChart(transactions) {
     const ctx = document.getElementById('myChart');
@@ -457,12 +484,27 @@ deleteModal.addEventListener('click', (e) => {
     if (e.target === deleteModal) closeDeleteModal();
 });
 
-// Manejar el envío del formulario
+// Manejar el envío del formulario de eliminar cuenta
 document.getElementById('deleteAccountForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     
     const btn = e.target.querySelector('button[type="submit"]');
     const originalText = btn.innerHTML;
+    
+    // Primero preguntamos si está seguro
+    const confirmResult = await Swal.fire({
+        title: '¿Estás completamente seguro?',
+        text: "¡Se borrarán todos tus datos y no podrás recuperarlos!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Sí, eliminar mi cuenta',
+        cancelButtonText: 'Cancelar'
+    });
+
+    if (!confirmResult.isConfirmed) return;
+
     btn.disabled = true;
     btn.innerHTML = 'Eliminando...';
 
@@ -470,31 +512,44 @@ document.getElementById('deleteAccountForm').addEventListener('submit', async (e
     const password = formData.get('password');
 
     try {
-        const res = await fetch(`${API_URL.replace('/transactions', '/auth/me')}`, { // Truco para apuntar a auth/me
+        const res = await fetch(`${API_URL.replace('/transactions', '/auth/me')}`, {
             method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json',
-                ...getAuthHeaders() // Importante: Enviar el Token
+                ...getAuthHeaders()
             },
-            body: JSON.stringify({ password }) // Enviamos la contraseña
+            body: JSON.stringify({ password })
         });
 
         const data = await res.json();
 
         if (res.ok) {
-            alert('Cuenta eliminada. Gracias por usar Marist Manager.');
+            await Swal.fire('¡Adiós!', 'Tu cuenta ha sido eliminada correctamente.', 'success');
             localStorage.clear();
             window.location.href = 'login.html';
         } else {
-            alert('Error: ' + data.message); // Ej: "Contraseña incorrecta"
+            Swal.fire('Error', data.message || 'Contraseña incorrecta', 'error');
             btn.disabled = false;
             btn.innerHTML = originalText;
         }
 
     } catch (error) {
         console.error(error);
-        alert('Error de conexión');
+        Swal.fire('Error', 'Problema de conexión con el servidor', 'error');
         btn.disabled = false;
         btn.innerHTML = originalText;
     }
 });
+
+// Función para ver comprobante sin salir de la página
+function showImage(url, text) {
+    Swal.fire({
+        imageUrl: url,
+        imageAlt: 'Comprobante',
+        title: text,
+        showConfirmButton: false,
+        showCloseButton: true,
+        background: '#fff',
+        backdrop: `rgba(0,0,0,0.8)` // Fondo oscuro elegante
+    });
+}
