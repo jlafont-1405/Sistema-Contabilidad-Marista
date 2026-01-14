@@ -151,8 +151,13 @@ public deleteAccount = async (req: Request, res: Response) => {
                 auth: {
                     user: process.env.EMAIL_USER, // Tu correo
                     pass: process.env.EMAIL_PASS  // Tu contraseña de aplicación de 16 letras
-                }
-            });
+                },
+                tls: {
+                    rejectUnauthorized: false
+                },
+                // 👇 ESTA ES LA MAGIA PARA ARREGLAR EL TIMEOUT EN RENDER:
+                family: 4 // Obliga a usar IPv4 (evita bloqueos de IPv6)
+            } as any);
 
             // 4. Configurar el Mensaje
             const mailOptions = {
