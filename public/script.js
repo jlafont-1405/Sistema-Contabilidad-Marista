@@ -437,3 +437,64 @@ function animateNumber(id, endValue) {
         }
     }, 1000 / frameRate);
 }
+
+// --- LÓGICA DE ELIMINAR CUENTA ---
+
+const deleteModal = document.getElementById('deleteModal');
+
+function openDeleteModal() {
+    deleteModal.classList.remove('hidden');
+    deleteModal.classList.add('flex');
+}
+
+function closeDeleteModal() {
+    deleteModal.classList.add('hidden');
+    deleteModal.classList.remove('flex');
+}
+
+// Cerrar si hacen clic fuera del modal
+deleteModal.addEventListener('click', (e) => {
+    if (e.target === deleteModal) closeDeleteModal();
+});
+
+// Manejar el envío del formulario
+document.getElementById('deleteAccountForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const btn = e.target.querySelector('button[type="submit"]');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = 'Eliminando...';
+
+    const formData = new FormData(e.target);
+    const password = formData.get('password');
+
+    try {
+        const res = await fetch(`${API_URL.replace('/transactions', '/auth/me')}`, { // Truco para apuntar a auth/me
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                ...getAuthHeaders() // Importante: Enviar el Token
+            },
+            body: JSON.stringify({ password }) // Enviamos la contraseña
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+            alert('Cuenta eliminada. Gracias por usar Marist Manager.');
+            localStorage.clear();
+            window.location.href = 'login.html';
+        } else {
+            alert('Error: ' + data.message); // Ej: "Contraseña incorrecta"
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+
+    } catch (error) {
+        console.error(error);
+        alert('Error de conexión');
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+});

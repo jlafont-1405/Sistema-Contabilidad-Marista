@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { TransactionController } from '../controllers/transaction.controller';
 import { upload } from '../middleware/upload.middleware';
-import { verifyToken, isAdmin } from '../middleware/auth.middleware';
+import { verifyToken } from '../middleware/auth.middleware';
 
 const router = Router();
 const controller = new TransactionController();
@@ -10,32 +10,28 @@ const controller = new TransactionController();
 // Solución: Pasamos solo (req, res) porque tu controller no pide 'next'
 router.get('/', verifyToken, (req, res, next) => controller.getByMonth(req, res));
 
-// --- 2. Rutas de Escritura (Protegidas) ---
+// --- 2. Rutas de Escritura (Protegidas para cualquier usuario logueado) ---
 
 router.post('/', 
     verifyToken, 
-    isAdmin, 
     upload.single('invoice'), 
-    (req, res, next) => controller.create(req, res) // 👈 Aquí quitamos el 'next' del final
+    (req, res, next) => controller.create(req, res)
 );
 
 router.post('/budget', 
     verifyToken, 
-    isAdmin, 
-    (req, res, next) => controller.setBudget(req, res) // 👈 Aquí también
+    (req, res, next) => controller.setBudget(req, res)
 );
 
 router.delete('/:id', 
     verifyToken, 
-    isAdmin, 
-    (req, res, next) => controller.delete(req, res) // 👈 Y aquí
+    (req, res, next) => controller.delete(req, res)
 );
 
 router.put('/:id', 
     verifyToken, 
-    isAdmin, 
     upload.single('invoice'), 
-    (req, res, next) => controller.update(req, res) // 👈 Y aquí
+    (req, res, next) => controller.update(req, res)
 );
 
 export default router;

@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crear Cuenta - Marista</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+</head>
+<body class="bg-gradient-to-br from-slate-900 to-blue-900 min-h-screen flex items-center justify-center p-4">
+
+    <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md border-t-8 border-yellow-500">
+        <div class="text-center mb-8">
+            <i class="ph ph-user-plus text-5xl text-blue-900 mb-2"></i>
+            <h1 class="text-2xl font-bold text-gray-800">Crear Nueva Cuenta</h1>
+            <p class="text-gray-500 text-sm">Empieza a controlar tus finanzas hoy</p>
+        </div>
+
+        <form id="registerForm" class="space-y-4">
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-1">Nombre Completo</label>
+                <div class="relative">
+                    <i class="ph ph-identification-card absolute left-3 top-3 text-gray-400 text-lg"></i>
+                    <input type="text" name="username" required class="w-full pl-10 p-3 border rounded-xl bg-gray-50 focus:ring-2 focus:ring-yellow-500 outline-none" placeholder="Ej. Jean Claude">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-1">Correo Electrónico</label>
+                <div class="relative">
+                    <i class="ph ph-envelope absolute left-3 top-3 text-gray-400 text-lg"></i>
+                    <input type="email" name="email" required class="w-full pl-10 p-3 border rounded-xl bg-gray-50 focus:ring-2 focus:ring-yellow-500 outline-none" placeholder="tu@correo.com">
+                </div>
+            </div>
+
+<div>
+    <label class="block text-sm font-bold text-gray-700 mb-1">Contraseña</label>
+    <div class="relative">
+        <i class="ph ph-lock-key absolute left-3 top-3.5 text-gray-400 text-lg"></i>
+        
+        <input 
+            type="password" 
+            name="password" 
+            id="passwordInput"
+            required 
+            class="w-full pl-10 pr-10 p-3 border rounded-xl bg-gray-50 focus:ring-2 focus:ring-yellow-500 outline-none transition-all" 
+            placeholder="••••••••"
+        >
+
+        <button 
+            type="button" 
+            id="togglePassword"
+            class="absolute right-3 top-3 text-gray-400 hover:text-blue-900 transition-colors focus:outline-none"
+            tabindex="-1"
+        >
+            <i class="ph ph-eye text-xl"></i>
+        </button>
+    </div>
+</div>
+
+            <button type="submit" class="w-full bg-blue-900 hover:bg-blue-800 text-white font-bold py-3 rounded-xl transition shadow-lg transform active:scale-95 flex justify-center items-center gap-2">
+                Registrarse <i class="ph ph-arrow-right-bold"></i>
+            </button>
+        </form>
+
+        <div class="mt-6 text-center pt-6 border-t border-gray-100">
+            <p class="text-gray-600 text-sm">¿Ya tienes cuenta?</p>
+            <a href="login.html" class="text-blue-600 font-bold hover:underline mt-1 inline-block">Iniciar Sesión</a>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = 'Creando cuenta...';
+
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+
+            try {
+                // CAMBIAR AQUI SI TU API_URL ES DIFERENTE
+                const res = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await res.json();
+
+                if (res.ok) {
+                    alert('¡Bienvenido! Cuenta creada exitosamente.');
+                    // Guardamos el token y vamos al dashboard
+                    localStorage.setItem('token', result.token);
+                    window.location.href = 'index.html';
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            } catch (error) {
+                alert('Error de conexión');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        });
+
+        const toggleBtn = document.getElementById('togglePassword');
+    const passwordInput = document.getElementById('passwordInput');
+    const icon = toggleBtn.querySelector('i');
+
+    toggleBtn.addEventListener('click', () => {
+        // 1. Alternar tipo de input
+        const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+        passwordInput.setAttribute('type', type);
+
+        // 2. Alternar ícono (Ojo abierto / Ojo tachado)
+        if (type === 'text') {
+            icon.classList.remove('ph-eye');
+            icon.classList.add('ph-eye-slash');
+            icon.classList.add('text-blue-600'); // Un toque de color cuando es visible
+        } else {
+            icon.classList.remove('ph-eye-slash');
+            icon.classList.add('ph-eye');
+            icon.classList.remove('text-blue-600');
+        }
+    });
+    </script>
+</body>
+</html>

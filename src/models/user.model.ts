@@ -3,31 +3,48 @@ import bcrypt from 'bcryptjs';
 
 export interface IUser extends Document {
     username: string;
+    email: string; // 👈 AGREGADO: Vital para registro y futuro contacto
     password: string;
-    role: 'admin' | 'guest';
+    role: 'admin' | 'guest'; // Útil para que solo tú veas paneles avanzados
     comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
 const UserSchema: Schema = new Schema({
-    username: { type: String, required: true, unique: true },
-    password: { type: String, required: true },
-    role: { type: String, enum: ['admin', 'guest'], default: 'guest' }
+    username: { 
+        type: String, 
+        required: true, 
+        trim: true 
+    },
+    email: { 
+        type: String, 
+        required: true, 
+        unique: true, // 👈 IMPORTANTE: No puede haber 2 cuentas con el mismo correo
+        lowercase: true, 
+        trim: true 
+    },
+    password: { 
+        type: String, 
+        required: true 
+    },
+    role: { 
+        type: String, 
+        enum: ['admin', 'guest'], 
+        default: 'guest' 
+    }
+}, {
+    timestamps: true, // Agrega createdAt y updatedAt automáticamente
+    versionKey: false
 });
 
-// 🔒 Middleware de Mongoose: Antes de guardar, encriptar la contraseña
-// Quitamos el parámetro 'next' y el genérico <IUser> en .pre, 
-// y tipamos explícitamente 'this: IUser' en la función.
+// 🔒 Middleware: Encriptar contraseña
 UserSchema.pre('save', async function (this: IUser) {
-    // 1. Si la contraseña no se modificó, no hacemos nada (termina la función)
     if (!this.isModified('password')) return;
 
-    // 2. Generar el hash
-    // No hace falta try/catch aquí; si falla, la promesa se rechaza sola y Mongoose captura el error.
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
 });
 
-// 🔑 Método para verificar contraseña (lo usaremos en el Login)
+// 🔑 Comparar contraseña
 UserSchema.methods.comparePassword = async function (candidatePassword: string): Promise<boolean> {
     return await bcrypt.compare(candidatePassword, this.password);
 };

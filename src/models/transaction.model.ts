@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface ITransaction extends Document {
+    userId: string; // <--- AGREGAR ESTO EN LA INTERFACE
     date: Date;
     type: 'ingreso' | 'egreso'; // <--- NUEVO CAMPO CRÍTICO
     amount: number;
@@ -11,6 +12,7 @@ export interface ITransaction extends Document {
 }
 
 const TransactionSchema: Schema = new Schema({
+    userId: { type: String, required: true, index: true },
     date: { type: Date, required: true, default: Date.now },
     type: { 
         type: String, 
