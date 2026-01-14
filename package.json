@@ -8,6 +8,7 @@
     "test": "jest"
   },
   "dependencies": {
+    "@types/nodemailer": "^7.0.5",
     "bcryptjs": "^3.0.3",
     "cloudinary": "^2.8.0",
     "cors": "^2.8.5",
@@ -17,7 +18,8 @@
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.1.1",
     "multer": "^2.0.2",
-    "multer-storage-cloudinary": "^4.0.0"
+    "multer-storage-cloudinary": "^4.0.0",
+    "nodemailer": "^7.0.12"
   },
   "devDependencies": {
     "@types/bcryptjs": "^3.0.0",

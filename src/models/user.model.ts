@@ -6,6 +6,8 @@ export interface IUser extends Document {
     email: string; // 👈 AGREGADO: Vital para registro y futuro contacto
     password: string;
     role: 'admin' | 'guest'; // Útil para que solo tú veas paneles avanzados
+    resetPasswordToken?: string; // 👈 Opcional
+    resetPasswordExpire?: Date;  // 👈 Opcional
     comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
@@ -30,7 +32,9 @@ const UserSchema: Schema = new Schema({
         type: String, 
         enum: ['admin', 'guest'], 
         default: 'guest' 
-    }
+    },
+    resetPasswordToken: { type: String },
+    resetPasswordExpire: { type: Date }
 }, {
     timestamps: true, // Agrega createdAt y updatedAt automáticamente
     versionKey: false

@@ -3,6 +3,8 @@ import jwt from 'jsonwebtoken';
 import User from '../models/user.model';
 import Transaction from '../models/transaction.model'; 
 import Budget from '../models/budget.model';           
+import crypto from 'crypto';
+import nodemailer from 'nodemailer';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secreto_super_seguro_marista';
 
@@ -113,4 +115,110 @@ public deleteAccount = async (req: Request, res: Response) => {
         res.status(500).json({ message: 'Error interno al eliminar cuenta' });
     }
 };
+
+// 4. OLVIDÉ CONTRASEÑA (Versión Final con Gmail 📧)
+    public forgotPassword = async (req: Request, res: Response) => {
+        // 👇 CORRECCIÓN 1: Definimos 'user' aquí afuera para que el 'catch' la pueda ver
+        let user: any; 
+
+        try {
+            const { email } = req.body;
+            
+            // 👇 CORRECCIÓN 2: Quitamos 'const' porque ya la definimos arriba
+            user = await User.findOne({ email });
+
+            if (!user) {
+                return res.status(404).json({ message: 'No existe usuario con ese correo' });
+            }
+
+            // 1. Generar Token
+            const resetToken = crypto.randomBytes(20).toString('hex');
+            user.resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+            user.resetPasswordExpire = new Date(Date.now() + 10 * 60 * 1000); // 10 min
+
+            // Guardamos el token antes de intentar enviar el correo
+            await user.save();
+
+            const baseUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+            // 2. URL del Frontend
+            const resetUrl = `${baseUrl}/reset-password.html?token=${resetToken}`;
+
+            // 3. Configurar el "Cartero" (Gmail)
+            const transporter = nodemailer.createTransport({
+                service: 'gmail',
+                auth: {
+                    user: process.env.EMAIL_USER, // Tu correo
+                    pass: process.env.EMAIL_PASS  // Tu contraseña de aplicación de 16 letras
+                }
+            });
+
+            // 4. Configurar el Mensaje
+            const mailOptions = {
+                from: `"Soporte Marist Manager" <${process.env.EMAIL_USER}>`,
+                to: user.email,
+                subject: 'Recuperar Contraseña - Marist Manager 🔐',
+                html: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
+                        <h2 style="color: #1e3a8a; text-align: center;">Sistema Marista</h2>
+                        <p>Hola,</p>
+                        <p>Hemos recibido una solicitud para restablecer tu contraseña.</p>
+                        <div style="text-align: center; margin: 30px 0;">
+                            <a href="${resetUrl}" style="background-color: #1e3a8a; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Restablecer Contraseña</a>
+                        </div>
+                        <p style="font-size: 14px; color: #999; text-align: center;">Este enlace expira en 10 minutos.</p>
+                    </div>
+                `
+            };
+
+            // 5. Enviar
+            await transporter.sendMail(mailOptions);
+
+            console.log(`✅ Correo enviado a ${user.email}`);
+            res.status(200).json({ success: true, message: 'Correo enviado. Revisa tu bandeja de entrada.' });
+
+        } catch (error) {
+            console.error("🔴 Error enviando correo:", error);
+            
+            // 👇 AHORA SÍ FUNCIONA: Si falló el correo, borramos el token para no dejarlo 'sucio'
+            if (user) {
+                user.resetPasswordToken = undefined;
+                user.resetPasswordExpire = undefined;
+                await user.save();
+            }
+            
+            res.status(500).json({ message: 'Hubo un error técnico al enviar el correo.' });
+        }
+    };
+
+    // 👇 5. RESTABLECER CONTRASEÑA (Guardar nueva)
+    public resetPassword = async (req: Request, res: Response) => {
+        try {
+            // Hash del token que viene en la URL para compararlo con el de la BD
+            const resetToken = crypto.createHash('sha256').update(req.params.resettoken as string).digest('hex');
+
+            const user = await User.findOne({
+                resetPasswordToken: resetToken,
+                resetPasswordExpire: { $gt: Date.now() } // Verificar que no haya expirado
+            });
+
+            if (!user) {
+                return res.status(400).json({ message: 'Token inválido o expirado' });
+            }
+
+            // Guardar nueva contraseña
+            user.password = req.body.password;
+            
+            // Limpiar token usado
+            user.resetPasswordToken = undefined;
+            user.resetPasswordExpire = undefined;
+
+            await user.save();
+
+            res.status(200).json({ success: true, message: 'Contraseña actualizada exitosamente' });
+
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ message: 'Error al resetear contraseña' });
+        }
+    };
 }
