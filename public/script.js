@@ -553,3 +553,84 @@ function showImage(url, text) {
         backdrop: `rgba(0,0,0,0.8)` // Fondo oscuro elegante
     });
 }
+
+// --- EXPORTAR A EXCEL (Versión Backend PRO) ---
+const btnExcel = document.getElementById('btnExcel');
+
+if (btnExcel) {
+    btnExcel.addEventListener('click', async () => {
+        
+        const originalContent = btnExcel.innerHTML;
+        btnExcel.innerHTML = '<span class="loader"></span> Generando...'; // O poner '⏳'
+        btnExcel.disabled = true;
+
+        try {
+            // Llamamos al backend enviando el TOKEN
+            const res = await fetch('/api/reports/excel', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+
+            if (res.ok) {
+                const blob = await res.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                // El nombre lo pone el navegador, pero podemos sugerir uno
+                a.download = `Reporte_Marista_${new Date().toISOString().slice(0,7)}.xlsx`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                
+                // Alerta bonita
+                const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
+                Toast.fire({ icon: 'success', title: '¡Reporte descargado! 📥' });
+
+            } else {
+                const txt = await res.text();
+                Swal.fire('Atención', 'No se pudo descargar: ' + txt, 'warning');
+            }
+        } catch (error) {
+            console.error(error);
+            Swal.fire('Error', 'Fallo de conexión', 'error');
+        } finally {
+            btnExcel.innerHTML = originalContent;
+            btnExcel.disabled = false;
+        }
+    });
+}
+
+// --- EFECTO "SOLO CALENDARIO" AL BAJAR ---
+const topBar = document.getElementById('topBar');
+const collapsibleBtns = document.querySelectorAll('.collapsible');
+
+if (topBar && collapsibleBtns.length > 0) {
+    
+    window.addEventListener('scroll', () => {
+        const scrollY = window.scrollY;
+
+        // Si bajamos más de 20px... ESCONDER BOTONES
+        if (scrollY > 20) {
+            collapsibleBtns.forEach(btn => {
+                // Truco CSS via JS para colapsar suavemente
+                btn.style.maxWidth = '0px';
+                btn.style.padding = '0px';
+                btn.style.opacity = '0';
+                btn.style.margin = '0px';
+                btn.style.flex = '0'; // Pierde su fuerza para empujar
+            });
+        } 
+        // Si estamos arriba del todo... MOSTRAR BOTONES
+        else {
+            collapsibleBtns.forEach(btn => {
+                btn.style.maxWidth = '500px'; // Un valor alto para que recupere su tamaño natural
+                btn.style.padding = '';       // Padding original (clase Tailwind)
+                btn.style.opacity = '1';
+                btn.style.margin = '';        // Margin original (gap del padre)
+                btn.style.flex = '1';         // Vuelve a ocupar 33%
+            });
+        }
+    });
+}

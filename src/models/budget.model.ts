@@ -4,6 +4,7 @@ export interface IBudget extends Document {
     userId: string;
     month: string;
     baseIncome: number;
+    amount:number;
 }
 
 const BudgetSchema: Schema = new Schema({
