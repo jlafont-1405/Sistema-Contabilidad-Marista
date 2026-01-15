@@ -15,7 +15,18 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    // 2. Configurar Fechas (Zona Horaria Local)
+    // 👇 2. PERSONALIZACIÓN DEL SALUDO (Aquí va la magia ✨)
+    const userName = localStorage.getItem('userName') || 'Usuario';    const welcomeTitle = document.getElementById('welcomeTitle'); // Buscamos el H1 que preparamos
+
+    if (welcomeTitle) {
+        // Inyectamos el HTML con el estilo "Hora de gestionar"
+        welcomeTitle.innerHTML = `
+            <span class="block text-xs text-blue-200 font-normal">Hora de gestionar</span>
+            <span class="text-white">¡Hola, ${userName}! 🚀</span>
+        `;
+    }
+
+    // 2.1 Configurar Fechas (Zona Horaria Local)
     const dateInput = document.querySelector('input[name="date"]');
     const now = new Date();
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
@@ -573,16 +584,33 @@ if (btnExcel) {
                 }
             });
 
-            if (res.ok) {
+if (res.ok) {
+                // 1. Intentamos leer el nombre que manda el servidor
+                const disposition = res.headers.get('Content-Disposition');
+                let filename = `Reporte_Marista_${new Date().toISOString().slice(0,7)}.xlsx`; // Nombre por defecto porsiaca
+
+                if (disposition && disposition.includes('filename=')) {
+                    // Magia para sacar el texto después de 'filename=' y quitar comillas
+                    const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+                    const matches = filenameRegex.exec(disposition);
+                    if (matches != null && matches[1]) {
+                        filename = matches[1].replace(/['"]/g, '');
+                    }
+                }
+
                 const blob = await res.blob();
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                // El nombre lo pone el navegador, pero podemos sugerir uno
-                a.download = `Reporte_Marista_${new Date().toISOString().slice(0,7)}.xlsx`;
+                
+                // 👇 AQUÍ USAMOS EL NOMBRE QUE LEÍMOS DEL SERVIDOR
+                a.download = filename; 
+                
                 document.body.appendChild(a);
                 a.click();
                 a.remove();
+                
+                // ... alertas ...
                 
                 // Alerta bonita
                 const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });

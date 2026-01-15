@@ -133,11 +133,28 @@
 
                 if (res.ok) {
                     // ✅ LOGIN EXITOSO
-                    localStorage.setItem('token', result.token);
-                    localStorage.setItem('role', result.role);
-                    // Guardamos el nombre para mostrarlo en el Dashboard
-                    if(result.username) localStorage.setItem('username', result.username);
+                    console.log("📦 Respuesta Login:", result); // Para depurar
 
+                    localStorage.setItem('token', result.token);
+                    
+                    // Guardamos el ID del usuario si viene
+                    if (result.user && result.user.id) {
+                        localStorage.setItem('userId', result.user.id);
+                    }
+
+                    // 👇 LA SOLUCIÓN DEFINITIVA
+                    // 1. Accedemos a result.user (porque así lo enviamos desde el backend)
+                    // 2. Prioridad: Nombre Real -> Usuario -> "Usuario"
+                    const userData = result.user || {};
+                    const nameToSave = userData.name || userData.username || 'Usuario';
+
+                    // 3. Guardamos en 'userName' (que es lo que lee tu script.js)
+                    localStorage.setItem('userName', nameToSave);
+
+                    console.log("✅ Nombre guardado:", nameToSave);
+
+                    // 👇 IMPORTANTE: Asegúrate de redirigir al archivo correcto
+                    // Si tu archivo principal se llama dashboard.html, ponlo aquí:
                     window.location.href = 'index.html';
                 } else {
                     // ❌ ERROR (Contraseña mala o usuario no existe)

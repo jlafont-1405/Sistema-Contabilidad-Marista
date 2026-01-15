@@ -8,6 +8,7 @@ export interface IUser extends Document {
     role: 'admin' | 'guest'; // Útil para que solo tú veas paneles avanzados
     resetPasswordToken?: string; // 👈 Opcional
     resetPasswordExpire?: Date;  // 👈 Opcional
+    name?: string; // 👈 AGREGAR ESTO
     comparePassword(candidatePassword: string): Promise<boolean>;
 }
 

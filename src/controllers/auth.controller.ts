@@ -72,8 +72,18 @@ export class AuthController {
             
             const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '24h' });
 
-            res.json({ token, role: user.role, username: user.username });
+            const displayName = (user as any).name || user.username || "Usuario";
 
+            res.json({
+                message: 'Inicio de sesión exitoso',
+                token,
+                user: {
+                    id: user._id,
+                    role: user.role,
+                    username: user.username,
+                    name: displayName // <--- ESTO ES LO IMPORTANTE
+                }
+            });
         } catch (error) {
             console.error("🔴 ERROR LOGIN:", error);
             res.status(500).json({ message: 'Error en el servidor', error: error });
