@@ -1,103 +1,83 @@
-# marist-manager
-# 📊 Marist Manager - Sistema de Gestión Financiera
+# ⛪ Gestión Marista - Sistema de Contabilidad
 
-Aplicación web Full Stack para el control de finanzas personales. Permite a múltiples usuarios registrar ingresos, egresos, establecer presupuestos mensuales y visualizar el estado de sus finanzas mediante gráficos interactivos.
+![Version](https://img.shields.io/badge/version-1.2.1-blue.svg)
+![Status](https://img.shields.io/badge/status-stable-success.svg)
+![License](https://img.shields.io/badge/license-MIT-green.svg)
 
-El sistema implementa una arquitectura **Multi-Tenant**, garantizando que los datos de cada usuario sean privados y seguros.
+Aplicación web **Full Stack** diseñada para la gestión financiera eficiente. Permite registrar ingresos y egresos, visualizar balances en tiempo real y generar reportes contables automáticos.
 
-## 🚀 Tecnologías
+El sistema cuenta con una arquitectura **Multi-Tenant** (datos privados por usuario) y una interfaz moderna que se adapta al dispositivo (**Mobile First**).
+
+## 🚀 Características Principales (v1.2.1)
+
+* **📊 Dashboard Interactivo:** Gráficos en tiempo real y tarjetas de balance que muestran el estado financiero del mes seleccionado.
+* **📱 UI Responsiva "Transformers":** Barra de herramientas dinámica que se compacta automáticamente al hacer scroll en dispositivos móviles para maximizar el área de visión.
+* **📑 Reportes Excel Inteligentes:** Generación de hojas de cálculo detalladas (`.xlsx`) usando **ExcelJS**, personalizadas con el nombre del usuario y organizadas por fecha.
+* **🔐 Seguridad Avanzada:** Autenticación vía **JWT**, encriptación con **Bcrypt** y protección de rutas privadas.
+* **👤 Experiencia Personalizada:** El sistema reconoce al usuario y personaliza saludos y archivos exportados.
+
+---
+
+## 🛠️ Tecnologías
 
 ### Backend
-* **Node.js** & **Express**: Servidor RESTful.
-* **TypeScript**: Tipado estático para mayor robustez.
-* **MongoDB Atlas** & **Mongoose**: Base de datos NoSQL y modelado de datos.
-* **JWT (JSON Web Tokens)**: Autenticación segura y manejo de sesiones.
-* **Bcrypt.js**: Encriptación de contraseñas.
-* **Nodemailer**: (Preparado) Gestión de correos electrónicos.
+* **Node.js** & **Express**: API RESTful escalable.
+* **TypeScript**: Código robusto y tipado.
+* **MongoDB Atlas**: Base de datos en la nube.
+* **ExcelJS**: Motor de generación de reportes contables.
+* **JWT & Bcrypt**: Seguridad y Sesiones.
 
 ### Frontend
-* **HTML5 Semántico**: Estructura limpia.
-* **TailwindCSS**: Diseño moderno y 100% Responsive (Mobile First).
-* **JavaScript (Vanilla)**: Lógica del cliente sin frameworks pesados.
-* **Chart.js**: Visualización de datos y estadísticas.
-* **Phosphor Icons**: Iconografía moderna.
+* **HTML5 & TailwindCSS**: Diseño moderno, limpio y adaptable.
+* **JavaScript (Vanilla)**: Lógica de cliente optimizada sin frameworks pesados.
+* **Chart.js**: Visualización de estadísticas.
+* **Phosphor Icons**: Iconografía vectorial.
 
 ---
 
-## 🛠️ Requisitos Previos
+## ⚙️ Instalación y Configuración
 
-Antes de comenzar, asegúrate de tener instalado:
-* [Node.js](https://nodejs.org/) (v16 o superior)
-* [Git](https://git-scm.com/)
-* Una cuenta en [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) (para la base de datos).
-
----
-
-## ⚙️ Configuración e Instalación
+Sigue estos pasos para correr el proyecto localmente:
 
 1.  **Clonar el repositorio:**
     ```bash
-    git clone [https://github.com/TU_USUARIO/marist-manager.git](https://github.com/TU_USUARIO/marist-manager.git)
-    cd marist-manager
+    git clone [https://github.com/jlafont-1405/Sistema-Contabilidad-Marista.git](https://github.com/jlafont-1405/Sistema-Contabilidad-Marista.git)
+    cd Sistema-Contabilidad-Marista
     ```
 
 2.  **Instalar dependencias:**
     ```bash
-    npm install
-    # O si usas yarn:
     yarn install
+    # o si usas npm: npm install
     ```
 
-3.  **Configurar Variables de Entorno (.env):**
-    Crea un archivo llamado `.env` en la raíz del proyecto. Este archivo **NO** debe subirse a GitHub. Copia y rellena el siguiente contenido:
-
+3.  **Configurar Variables de Entorno:**
+    Crea un archivo `.env` en la raíz (basado en `.env.example` si existiera) y agrega tus credenciales:
     ```env
-    # --- Configuración del Servidor ---
     PORT=3000
-    
-    # --- Base de Datos (MongoDB Atlas) ---
-    # Reemplaza <password> con tu contraseña real de Atlas
-    MONGO_URI=mongodb+srv://tu_usuario:<password>@cluster0.mongodb.net/marist-manager?retryWrites=true&w=majority
-    
-    # --- Seguridad (JWT) ---
-    # Escribe una frase larga y secreta para firmar los tokens
-    JWT_SECRET=tu_palabra_secreta_super_segura_2026
-    
-    # --- (Opcional) Emails ---
-    # Actualmente el sistema simula el envío en consola, pero puedes configurarlo a futuro:
-    # EMAIL_USER=tu@correo.com
-    # EMAIL_PASS=tu_contraseña_de_aplicacion
+    MONGO_URI=mongodb+srv://<usuario>:<password>@cluster.mongodb.net/marist-db
+    JWT_SECRET=tu_clave_secreta_para_firmar_tokens
     ```
+
+4.  **Ejecutar en modo Desarrollo:**
+    ```bash
+    yarn dev
+    ```
+    _El servidor iniciará en `http://localhost:3000`_
 
 ---
 
-## ▶️ Ejecución
+## 📂 Estructura del Proyecto
 
-### Modo Desarrollo (Recomendado)
-Inicia el servidor con recarga automática (Nodemailer/TS-Node) y transpila TypeScript en tiempo real.
-
-```bash
-npm run dev
-# O:
-yarn dev
-
-
-ESTRUCTURA DEL PROYECTO
+```text
 /
-├── public/             # Archivos estáticos (HTML, CSS compilado)
-│   ├── index.html      # Dashboard principal
-│   ├── login.html      # Inicio de sesión
-│   ├── register.html   # Registro de usuarios
-│   ├── js/             # Lógica Frontend (script.js)
-│   └── css/            # Estilos
-├── src/
-│   ├── config/         # Conexión a DB
-│   ├── controllers/    # Lógica de negocio (Auth, Transactions)
-│   ├── models/         # Esquemas de Mongoose (User, Budget, Transaction)
-│   ├── routes/         # Definición de endpoints API
-│   └── index.ts        # Punto de entrada del servidor
-├── .env                # Variables de entorno (NO SUBIR)
-└── tsconfig.json       # Configuración de TypeScript
-
-
-Desarrollado por Jean Claude - 2026. Estudiante de Ingeniería de Sistemas.
+├── public/          # Frontend (HTML, CSS compilado, JS estático)
+│   ├── js/          # Lógica del cliente (Fetch API, DOM)
+│   └── css/         # Estilos Tailwind
+├── src/             # Backend (Código Fuente TypeScript)
+│   ├── controllers/ # Lógica de negocio (Reportes, Auth, Transacciones)
+│   ├── models/      # Esquemas de Datos (Mongoose)
+│   ├── routes/      # Endpoints de la API
+│   └── index.ts     # Punto de entrada
+├── dist/            # Código compilado (Producción)
+└── .env             # Variables de entorno (Ignorado por Git)
