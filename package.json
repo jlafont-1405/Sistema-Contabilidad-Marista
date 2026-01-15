@@ -1,6 +1,6 @@
 {
   "name": "marist-manager",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "Sistema de gestión de gastos",
   "packageManager": "yarn@4.9.2",
   "scripts": {
