@@ -77,63 +77,91 @@
         </div>
     </div>
 
-    <script>
-        document.getElementById('registerForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const btn = e.target.querySelector('button');
-            const originalText = btn.innerHTML;
-            btn.disabled = true;
-            btn.innerHTML = 'Creando cuenta...';
+<script>
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        // 1. UX: Feedback visual en el botón
+        const btn = e.target.querySelector('button');
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Creando cuenta...'; // Icono girando si tienes Phosphor Icons
 
-            const formData = new FormData(e.target);
-            const data = Object.fromEntries(formData.entries());
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData.entries());
 
-            try {
-                // CAMBIAR AQUI SI TU API_URL ES DIFERENTE
-                const res = await fetch('/api/auth/register', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
+        try {
+            const res = await fetch('/api/auth/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            const result = await res.json();
+
+            if (res.ok) {
+                // ✅ ÉXITO: Modal Bonito con SweetAlert2
+                Swal.fire({
+                    title: '¡Bienvenido a la Familia! 🎓',
+                    text: 'Tu cuenta ha sido creada exitosamente.',
+                    icon: 'success',
+                    confirmButtonText: 'Ir al Dashboard',
+                    confirmButtonColor: '#1e3a8a', // Azul Marista
+                    timer: 2000, // Se cierra solo en 2 seg
+                    timerProgressBar: true
+                }).then(() => {
+                    // Guardamos Token Y USUARIO (Crucial para el panel Admin)
+                    localStorage.setItem('token', result.token);
+                    localStorage.setItem('user', JSON.stringify(result.user)); 
+                    
+                    // Redirigimos
+                    window.location.href = 'index.html';
                 });
 
-                const result = await res.json();
-
-                if (res.ok) {
-                    alert('¡Bienvenido! Cuenta creada exitosamente.');
-                    // Guardamos el token y vamos al dashboard
-                    localStorage.setItem('token', result.token);
-                    window.location.href = 'index.html';
-                } else {
-                    alert('Error: ' + result.message);
-                }
-            } catch (error) {
-                alert('Error de conexión');
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = originalText;
+            } else {
+                // ❌ ERROR: Modal de Error
+                Swal.fire({
+                    title: 'Hubo un problema',
+                    text: result.message || 'No se pudo crear la cuenta',
+                    icon: 'error',
+                    confirmButtonColor: '#ef4444'
+                });
             }
-        });
 
-        const toggleBtn = document.getElementById('togglePassword');
+        } catch (error) {
+            console.error(error);
+            Swal.fire({
+                title: 'Error de Conexión',
+                text: 'No pudimos contactar con el servidor. Intenta de nuevo.',
+                icon: 'warning',
+                confirmButtonColor: '#f59e0b'
+            });
+        } finally {
+            // Restaurar botón
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    });
+
+    // Lógica del Ojo de la Contraseña (Se mantiene igual, funciona perfecto)
+    const toggleBtn = document.getElementById('togglePassword');
     const passwordInput = document.getElementById('passwordInput');
     const icon = toggleBtn.querySelector('i');
 
     toggleBtn.addEventListener('click', () => {
-        // 1. Alternar tipo de input
         const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
         passwordInput.setAttribute('type', type);
 
-        // 2. Alternar ícono (Ojo abierto / Ojo tachado)
         if (type === 'text') {
             icon.classList.remove('ph-eye');
             icon.classList.add('ph-eye-slash');
-            icon.classList.add('text-blue-600'); // Un toque de color cuando es visible
+            icon.classList.add('text-blue-600');
         } else {
             icon.classList.remove('ph-eye-slash');
             icon.classList.add('ph-eye');
             icon.classList.remove('text-blue-600');
         }
     });
-    </script>
+</script>
 </body>
 </html>

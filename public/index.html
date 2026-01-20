@@ -248,6 +248,23 @@
 
 <script src="script.js"></script>
 
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+    // Verificar si ya vio el anuncio
+    if (!localStorage.getItem('sawProfileUpdate')) {
+        Swal.fire({
+            title: '¡Nueva Funcionalidad! 📸',
+            text: 'Pronto podrás subir tu foto de perfil personalizada. Estamos mejorando para ti.',
+            icon: 'info',
+            confirmButtonText: '¡Genial!',
+            confirmButtonColor: '#1e3a8a' // Azul Marista
+        }).then(() => {
+            // Marcar como visto para que no salga cada vez que recarga
+            localStorage.setItem('sawProfileUpdate', 'true');
+        });
+    }
+</script>
 
 </body>
 </html>

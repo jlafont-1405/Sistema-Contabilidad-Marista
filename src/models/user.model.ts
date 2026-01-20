@@ -5,7 +5,10 @@ export interface IUser extends Document {
     username: string;
     email: string; // 👈 AGREGADO: Vital para registro y futuro contacto
     password: string;
-    role: 'admin' | 'guest'; // Útil para que solo tú veas paneles avanzados
+    role: 'guest' | 'admin';
+    lastLogin: Date;
+    photoUrl: string;
+    isActive: boolean; // Útil para que solo tú veas paneles avanzados
     resetPasswordToken?: string; // 👈 Opcional
     resetPasswordExpire?: Date;  // 👈 Opcional
     name?: string; // 👈 AGREGAR ESTO
@@ -31,8 +34,20 @@ const UserSchema: Schema = new Schema({
     },
     role: { 
         type: String, 
-        enum: ['admin', 'guest'], 
+        enum: ['guest', 'admin'], 
         default: 'guest' 
+    },
+    lastLogin: { 
+        type: Date, 
+        default: null 
+    },
+    photoUrl: {
+        type: String,
+        default: 'https://cdn-icons-png.flaticon.com/512/149/149071.png' // Foto por defecto
+    },
+    isActive: {
+        type: Boolean,
+        default: true
     },
     resetPasswordToken: { type: String },
     resetPasswordExpire: { type: Date }

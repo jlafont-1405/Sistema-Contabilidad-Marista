@@ -9,26 +9,30 @@ import { Resend } from 'resend';
 const JWT_SECRET = process.env.JWT_SECRET || 'secreto_super_seguro_marista';
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-export class AuthController {
+
 
     // 1. REGISTRO (Corregido para Email + AutoLogin)
-    public register = async (req: Request, res: Response) => {
-        try {
-            console.log("📝 Intentando registrar:", req.body.email);
-            
-            // Usamos email para validación, username es cosmético
-            const { username, email, password, role } = req.body; 
+export const register = async (req: Request, res: Response) => {
+    try {
+        const { username, email, password, role, adminSecret } = req.body; 
 
-            // A. Validar si ya existe el CORREO (No el username)
-            const existingUser = await User.findOne({ email });
-            if (existingUser) {
-                return res.status(400).json({ message: 'Este correo ya está registrado' });
-            }
+        // Lógica para definir el rol
+        // 👇 AQUÍ ESTABA EL ERROR: Cambiamos 'user' por 'guest'
+        let userRole = 'guest'; 
 
-            // B. Crear Usuario
-            // Nota: Si no mandan rol, el modelo pone 'guest' por defecto
-            const newUser = new User({ username, email, password, role });
-            await newUser.save();
+        // Si intenta ser admin con la clave secreta
+        if (role === 'admin' && adminSecret === 'CLAVE_SUPER_SECRETA_JEAN_2026') {
+            userRole = 'admin';
+        }
+
+        const newUser = new User({ 
+            username, 
+            email, 
+            password, 
+            role: userRole // Ahora enviará 'guest' o 'admin'
+        });
+        
+        await newUser.save();
 
             // C. Generar Token de una vez (Auto-Login) 🚀
             const token = jwt.sign(
@@ -55,8 +59,7 @@ export class AuthController {
     }
 
     // 2. LOGIN (Corregido para buscar por Email)
-    public login = async (req: Request, res: Response) => {
-        try {
+export const login = async (req: Request, res: Response) => {        try {
             const { email, password } = req.body; // 👈 Ahora esperamos email
 
             // A. Buscar usuario por EMAIL
@@ -66,6 +69,10 @@ export class AuthController {
             // B. Comparar contraseña
             const isMatch = await user.comparePassword(password);
             if (!isMatch) return res.status(400).json({ message: 'Credenciales inválidas' });
+
+            // ACTUALIZAR ÚLTIMO ACCESO
+            user.lastLogin = new Date();
+            await user.save();
 
             // C. Crear Token
             const payload = { id: user._id, role: user.role, username: user.username };
@@ -93,8 +100,7 @@ export class AuthController {
     // 3. ELIMINAR CUENTA (Borrado en Cascada) 🗑️
     // En src/controllers/auth.controller.ts
 
-public deleteAccount = async (req: Request, res: Response) => {
-    try {
+export const deleteAccount = async (req: Request, res: Response) => {    try {
         const userId = (req as any).user.id; // Del Token
         const { password } = req.body; // 👈 Del formulario de confirmación
 
@@ -128,8 +134,7 @@ public deleteAccount = async (req: Request, res: Response) => {
 };
 
 // 4. OLVIDÉ CONTRASEÑA (Versión Final con API RESEND 📧)
-    public forgotPassword = async (req: Request, res: Response) => {
-        let user: any; 
+export const forgotPassword = async (req: Request, res: Response) => {        let user: any; 
 
         try {
             const { email } = req.body;
@@ -194,8 +199,7 @@ public deleteAccount = async (req: Request, res: Response) => {
     };
 
     // 👇 5. RESTABLECER CONTRASEÑA (Guardar nueva)
-    public resetPassword = async (req: Request, res: Response) => {
-        try {
+export const resetPassword = async (req: Request, res: Response) => {        try {
             // Hash del token que viene en la URL para compararlo con el de la BD
             const resetToken = crypto.createHash('sha256').update(req.params.resettoken as string).digest('hex');
 
@@ -224,4 +228,12 @@ public deleteAccount = async (req: Request, res: Response) => {
             res.status(500).json({ message: 'Error al resetear contraseña' });
         }
     };
-}
+
+export const getAllUsers = async (req: Request, res: Response) => {
+    try {
+        const users = await User.find().select('-password').sort({ lastLogin: -1 });
+        res.json(users);
+    } catch (error) {
+        res.status(500).json({ message: 'Error al obtener usuarios' });
+    }
+};
