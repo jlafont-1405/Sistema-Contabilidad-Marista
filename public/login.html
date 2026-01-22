@@ -138,30 +138,27 @@
                 const result = await res.json();
 
                 if (res.ok) {
-                    // ✅ LOGIN EXITOSO
-                    console.log("📦 Respuesta Login:", result); // Para depurar
+                // ✅ LOGIN EXITOSO
+                
+                // 1. Guardar Token
+                localStorage.setItem('token', result.token);
+                
+                // 2. 🔥 LA LÍNEA QUE FALTABA (Guardar todo el usuario con su rol)
+                localStorage.setItem('user', JSON.stringify(result.user)); 
 
-                    localStorage.setItem('token', result.token);
-                    
-                    // Guardamos el ID del usuario si viene
-                    if (result.user && result.user.id) {
-                        localStorage.setItem('userId', result.user.id);
-                    }
+                // 3. Guardar datos sueltos (por si otros scripts viejos los usan)
+                if (result.user && result.user.id) {
+                    localStorage.setItem('userId', result.user.id);
+                }
+                
+                // Guardar nombre para el saludo
+                const userData = result.user || {};
+                const nameToSave = userData.name || userData.username || 'Usuario';
+                localStorage.setItem('userName', nameToSave);
 
-                    // 👇 LA SOLUCIÓN DEFINITIVA
-                    // 1. Accedemos a result.user (porque así lo enviamos desde el backend)
-                    // 2. Prioridad: Nombre Real -> Usuario -> "Usuario"
-                    const userData = result.user || {};
-                    const nameToSave = userData.name || userData.username || 'Usuario';
-
-                    // 3. Guardamos en 'userName' (que es lo que lee tu script.js)
-                    localStorage.setItem('userName', nameToSave);
-
-                    console.log("✅ Nombre guardado:", nameToSave);
-
-                    // 👇 IMPORTANTE: Asegúrate de redirigir al archivo correcto
-                    // Si tu archivo principal se llama dashboard.html, ponlo aquí:
-                    window.location.href = 'index.html';
+                // 4. Redirigir al Dashboard (Donde está el botón Admin)
+                // Cambié 'index.html' por 'dashboard.html' para que veas el botón
+                window.location.href = 'index.html';
                 } else {
                     // ❌ ERROR (Contraseña mala o usuario no existe)
                     errorText.textContent = result.message || 'Error de acceso';

@@ -13,6 +13,10 @@ export interface IUser extends Document {
     resetPasswordExpire?: Date;  // 👈 Opcional
     name?: string; // 👈 AGREGAR ESTO
     comparePassword(candidatePassword: string): Promise<boolean>;
+
+
+
+    
 }
 
 const UserSchema: Schema = new Schema({

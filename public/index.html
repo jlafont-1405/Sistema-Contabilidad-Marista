@@ -32,9 +32,18 @@
             </span>
         </h1>
 
-        <button id="btnLogout" class="p-2 bg-blue-800 hover:bg-red-600 rounded-full transition-colors shadow-sm border border-blue-700" title="Cerrar Sesión">
-            <i class="ph ph-sign-out text-xl"></i>
-        </button>
+        <div class="flex items-center gap-3">
+            
+            <a id="adminBtn" href="admin.html" class="hidden bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-lg shadow-md flex items-center gap-2 transition-all text-sm">
+                <i class="ph ph-shield-check text-lg"></i>
+                <span class="hidden sm:inline">Admin</span>
+            </a>
+
+            <button id="btnLogout" class="p-2 bg-blue-800 hover:bg-red-600 rounded-full transition-colors shadow-sm border border-blue-700" title="Cerrar Sesión">
+                <i class="ph ph-sign-out text-xl"></i>
+            </button>
+        </div>
+
     </div>
 </nav>
 
@@ -264,6 +273,52 @@
             localStorage.setItem('sawProfileUpdate', 'true');
         });
     }
+
+    // Esperar a que todo el HTML cargue antes de ejecutar nada
+    document.addEventListener('DOMContentLoaded', () => {
+        
+        // 1. LÓGICA DE ADMIN (El Detector de Jefes 🕵️‍♂️)
+        const userStr = localStorage.getItem('user');
+        
+        if (userStr) {
+            try {
+                const user = JSON.parse(userStr);
+                // Verificamos en consola para estar seguros
+                console.log("👤 Usuario detectado:", user.role); 
+
+                if (user.role === 'admin') {
+                    const adminBtn = document.getElementById('adminBtn');
+                    if (adminBtn) {
+                        adminBtn.classList.remove('hidden');
+                        console.log("✅ Botón Admin activado");
+                    } else {
+                        console.error("⚠️ El usuario es Admin, pero no encontré el botón con id='adminBtn'");
+                    }
+                }
+            } catch (e) {
+                console.error("Error leyendo usuario", e);
+            }
+        }
+
+        // 2. LÓGICA DE SALUDO (Para que diga "Hola, Administrador")
+        const welcomeTitle = document.getElementById('welcomeTitle');
+        const userName = localStorage.getItem('userName');
+        if (userName && welcomeTitle) {
+            // Buscamos el span del texto (el segundo span) o agregamos uno nuevo
+            // Simple: Le agregamos el nombre al final
+            // Ojo: Ajusta esto según cómo quieras que se vea el título
+            // welcomeTitle.innerHTML += ` <span class="text-sm text-blue-200 block">Hola, ${userName}</span>`;
+        }
+
+        // 3. LÓGICA DE CERRAR SESIÓN
+        const btnLogout = document.getElementById('btnLogout');
+        if (btnLogout) {
+            btnLogout.addEventListener('click', () => {
+                localStorage.clear();
+                window.location.href = 'login.html';
+            });
+        }
+    });
 </script>
 
 </body>
